@@ -54,19 +54,21 @@ def config():
                                'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
                                'name':"xentr"}
     
-    
+    ord_keys = net_arch.keys()
     tensorboard_verbose = 3
     show_metric = True
     batch_size = 1
-    save_path = "/tmp/tflearn_lstm_model"
-    
+    save_path = "/tmp/"
+    run_id = "tflearn_runXYZ"
 
 @ex.automain
-def train(trainX,trainY,testX,testY,net_arch,tensorboard_verbose,show_metric,batch_size):
+def train(trainX,trainY,testX,testY,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id):
 
+       
     # Network building
     net = tflearn.input_data([None,net_arch['input_size']])
-    for key in net_arch.keys():
+    for key in ord_keys:
+        print(key)
         value = net_arch[key]
         if key=='embedding':
            net = tflearn.embedding(net, input_dim=value['input_dim'], output_dim=value['output_dim'],
@@ -96,4 +98,4 @@ def train(trainX,trainY,testX,testY,net_arch,tensorboard_verbose,show_metric,bat
     
     model = tflearn.DNN(net, tensorboard_verbose)
     model.fit(trainX, trainY, validation_set=(testX, testY), show_metric=show_metric, batch_size=batch_size)
-    model.save(save_path+model.run+".tfl")
+    model.save(save_path+run_id+".tfl")
