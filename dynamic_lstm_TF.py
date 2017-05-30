@@ -13,22 +13,23 @@ References:
 """
 from __future__ import division, print_function, absolute_import
 import sys
-from tensorflow import float32 as tffloat32
+import tensorflow as tf
 import tflearn
 import imdb_preprocess as imdb_pre
+import collections 
 from sacred import Experiment
 from sacred.observers import MongoObserver
-import collections 
+#from sacred.stflow import LogFileWriter
 
 ex = Experiment('IMDBMovieReview-LSTM')
 ex.observers.append(MongoObserver.create())
 
 #embedding_layer = Embedding(input_dim=word_model.syn0.shape[0], output_dim=word_model.syn0.shape[1], weights=[word_model.syn0]
 
-
 @ex.config
 def config():
-
+   
+    
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
     net_arch['input_size'] = 300
@@ -44,7 +45,7 @@ def config():
                                'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
                                'restore':True, 'reuse':False, 'scope':None,'name':"fc1"}
     net_arch['output']     = {'optimizer':'adam','loss':'categorical_crossentropy','metric':'default','learning_rate':0.001,
-                               'dtype':tffloat32, 'batch_size':64,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
+                               'dtype':tf.float32, 'batch_size':64,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
                                'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
                                'name':"xentr"}
     
@@ -52,22 +53,16 @@ def config():
     tensorboard_verbose = 3
     show_metric = True
     batch_size = 1
-    save_path = "/tmp/"
+    save_path = "/tmp/tflearn_logs/"
+    tensorboard_dir = "/tmp/tflearn_logs/"
     run_id = "tflearn_runXYZ"
 
-@ex.automain
-def train(net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id):
 
-    #Train and test sets
-    trainX = imdb_pre.trainX
-    trainY = imdb_pre.trainY
-    testX = imdb_pre.testX
-    testY = imdb_pre.testY
-    
+def build_network(net_arch,ord_keys,tensorboard_verbose):
+
     # Network building
     net = tflearn.input_data([None,net_arch['input_size']])
     for key in ord_keys:
-        print(key)
         value = net_arch[key]
         if key=='embedding':
            net = tflearn.embedding(net, input_dim=value['input_dim'], output_dim=value['output_dim'],
@@ -96,5 +91,25 @@ def train(net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size
 
     
     model = tflearn.DNN(net, tensorboard_verbose)
+
+    return model
+
+
+@ex.automain
+def train(net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id):
+
+    
+    #Train and test sets
+    trainX = imdb_pre.trainX
+    trainY = imdb_pre.trainY
+    testX = imdb_pre.testX
+    testY = imdb_pre.testY
+    
+    model = build_network(net_arch,ord_keys,tensorboard_verbose)
     model.fit(trainX, trainY, validation_set=(testX, testY), show_metric=show_metric, batch_size=batch_size)
     model.save(save_path+run_id+".tfl")
+    """
+    with tf.Session() as s:
+        swr = tf.summary.FileWriter(run_id, s.graph)
+        # _run.info["tensorflow"]["logdirs"] == ["/tmp/1"]
+    """
