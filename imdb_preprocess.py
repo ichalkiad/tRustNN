@@ -1,10 +1,14 @@
 import gensim
 import re
+import random
 import numpy as np
 import WordEmbedder as we
 from textData import filenames_train, filenames_test
 from tflearn.data_utils import to_categorical
 
+
+random.shuffle(filenames_train)
+random.shuffle(filenames_test)
 
 # Load Google's pre-trained Word2Vec model.
 model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
