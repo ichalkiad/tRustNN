@@ -29,12 +29,6 @@ ex.observers.append(MongoObserver.create())
 @ex.config
 def config():
 
-    #Train and test sets
-    trainX = imdb_pre.trainX
-    trainY = imdb_pre.trainY
-    testX = imdb_pre.testX
-    testY = imdb_pre.testY
-
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
     net_arch['input_size'] = 300
@@ -62,9 +56,14 @@ def config():
     run_id = "tflearn_runXYZ"
 
 @ex.automain
-def train(trainX,trainY,testX,testY,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id):
+def train(net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id):
 
-       
+    #Train and test sets
+    trainX = imdb_pre.trainX
+    trainY = imdb_pre.trainY
+    testX = imdb_pre.testX
+    testY = imdb_pre.testY
+    
     # Network building
     net = tflearn.input_data([None,net_arch['input_size']])
     for key in ord_keys:
