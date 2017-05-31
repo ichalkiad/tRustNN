@@ -1,13 +1,12 @@
-filenames_train = ["/home/yannis/Desktop/tRustNN/aclImdb/train/neg/96_1.txt",
-'/home/yannis/Desktop/tRustNN/aclImdb/train/neg/95_3.txt']
-
-"""
-,
+filenames_train_valid = ["/home/yannis/Desktop/tRustNN/aclImdb/train/neg/96_1.txt",
+                         '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/95_3.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/94_1.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/93_1.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/92_3.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/91_1.txt',
-'/home/yannis/Desktop/tRustNN/aclImdb/train/neg/90_4.txt',
+                         '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/90_4.txt']
+"""
+,
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/89_2.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/88_2.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/87_4.txt',
