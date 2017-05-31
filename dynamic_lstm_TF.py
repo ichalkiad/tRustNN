@@ -15,20 +15,29 @@ from __future__ import division, print_function, absolute_import
 import sys
 import tensorflow as tf
 import tflearn
+import collections
 import imdb_preprocess as imdb_pre
-import collections 
 from sacred import Experiment
+from textData import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
+from sacred.observers import FileStorageObserver
 #from sacred.stflow import LogFileWriter
 
 ex = Experiment('IMDBMovieReview-LSTM')
-ex.observers.append(MongoObserver.create())
 
+   
 #embedding_layer = Embedding(input_dim=word_model.syn0.shape[0], output_dim=word_model.syn0.shape[1], weights=[word_model.syn0]
+
 
 @ex.config
 def config():
-   
+    
+    db = "file" # "file" or "mongo"
+    if db=="mongo":
+        ex.observers.append(MongoObserver.create())
+    elif db=="file":
+        ex.observers.append(FileStorageObserver.create('SacredRunLog'))
+
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -48,7 +57,7 @@ def config():
                                'dtype':tf.float32, 'batch_size':64,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
                                'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
                                'name':"xentr"}
-    
+
     ord_keys = net_arch.keys()
     tensorboard_verbose = 3
     show_metric = True
@@ -56,7 +65,7 @@ def config():
     save_path = "/tmp/tflearn_logs/"
     tensorboard_dir = "/tmp/tflearn_logs/"
     run_id = "tflearn_runXYZ"
-
+        
 
 def build_network(net_arch,ord_keys,tensorboard_verbose):
 
@@ -96,17 +105,13 @@ def build_network(net_arch,ord_keys,tensorboard_verbose):
 
 
 @ex.automain
-def train(net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id):
+def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db):
 
-    
-    #Train and test sets
-    trainX = imdb_pre.trainX
-    trainY = imdb_pre.trainY
-    testX = imdb_pre.testX
-    testY = imdb_pre.testY
-    
+    #Train, valid and test sets
+    trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test)
+
     model = build_network(net_arch,ord_keys,tensorboard_verbose)
-    model.fit(trainX, trainY, validation_set=(testX, testY), show_metric=show_metric, batch_size=batch_size)
+    model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
     model.save(save_path+run_id+".tfl")
     """
     with tf.Session() as s:
