@@ -18,7 +18,7 @@ import tflearn
 import collections
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from sacred import Experiment
-from IMDB_dataset.textData import filenames_train_valid, filenames_test
+from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
 from sacred.observers import FileStorageObserver
 #from sacred.stflow import LogFileWriter
