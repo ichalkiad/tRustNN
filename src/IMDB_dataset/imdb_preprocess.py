@@ -20,7 +20,7 @@ def extract_features(filenames_train_valid,filenames_test,seed):
     filenames_valid = X_valid
     
     # Load Google's pre-trained Word2Vec model.
-    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
+    model = gensim.models.KeyedVectors.load_word2vec_format('/home/icha/GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
 
     #Initialize preprocessor
