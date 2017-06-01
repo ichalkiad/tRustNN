@@ -32,10 +32,12 @@ ex = Experiment('IMDBMovieReview-LSTM')
 @ex.config
 def config():
     
-    db = "file" # "file" or "mongo"
+    db = ""
     if db=="mongo":
+        print("Using mongodb for logging")
         ex.observers.append(MongoObserver.create())
     elif db=="file":
+        print("Using local file storage for logging")        
         ex.observers.append(FileStorageObserver.create('SacredRunLog'))
 
     
