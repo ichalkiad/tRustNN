@@ -24,10 +24,8 @@ from sacred.observers import FileStorageObserver
 #from sacred.stflow import LogFileWriter
 
 ex = Experiment('IMDBMovieReview-LSTM')
-
    
 #embedding_layer = Embedding(input_dim=word_model.syn0.shape[0], output_dim=word_model.syn0.shape[1], weights=[word_model.syn0]
-
 
 @ex.config
 def config():
@@ -43,13 +41,13 @@ def config():
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
-    net_arch['input_size'] = 300
-    net_arch['embedding']  = {'input_dim':300, 'output_dim':128, 'validate_indices':False,
+    net_arch['input_size'] = 3000000
+    net_arch['embedding']  = {'input_dim':3000000, 'output_dim':300, 'validate_indices':False,
                                'weights_init':'truncated_normal', 'trainable':True, 'restore':True,
                                'reuse':False, 'scope':None, 'name':"embed1"}
     net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
                                'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
-                               'return_seq':False, 'return_state':False, 'initial_state':None,
+                               'return_seq':True, 'return_state':True, 'initial_state':None,
                                'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
                                'scope':None,'name':"lstm1"}
     net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
