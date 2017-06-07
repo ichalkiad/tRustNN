@@ -4,10 +4,57 @@ import random
 import numpy as np
 import wordEmbedder as we
 import _pickle as cPickle
-from tflearn.data_utils import to_categorical,pad_sequences
+from tflearn.data_utils import to_categorical
 from sklearn.model_selection import train_test_split
 import sys
 from pathlib import Path
+
+
+
+def pad_sequences(sequences, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
+    """ pad_sequences.
+    Pad each sequence to the same length: the length of the longest sequence.
+    If maxlen is provided, any sequence longer than maxlen is truncated to
+    maxlen. Truncation happens off either the beginning or the end (default)
+    of the sequence. Supports pre-padding and post-padding (default).
+    Arguments:
+        sequences: list of lists where each element is a sequence.
+        maxlen: int, maximum length.
+        dtype: type to cast the resulting sequence.
+        padding: 'pre' or 'post', pad either before or after each sequence.
+        truncating: 'pre' or 'post', remove values from sequences larger than
+            maxlen either in the beginning or in the end of the sequence
+        value: float, value to pad the sequences to the desired value.
+    Returns:
+        x: `numpy array` with dimensions (number_of_sequences, maxlen)
+    Credits: From Keras `pad_sequences` function.
+    """
+    lengths = [len(s) for s in sequences]
+
+    nb_samples = len(sequences)
+    if maxlen is None:
+        maxlen = np.max(lengths)
+
+    x = (np.ones((nb_samples, maxlen)) * value).astype(dtype)
+    for idx, s in enumerate(sequences):
+        if len(s) == 0:
+            continue  # empty list was found
+        if truncating == 'pre':
+            trunc = s[-maxlen:]
+        elif truncating == 'post':
+            trunc = s[:maxlen]
+        else:
+            raise ValueError("Truncating type '%s' not understood" % padding)
+
+        if padding == 'post':
+            x[idx, :len(trunc)] = trunc
+        elif padding == 'pre':
+            x[idx, -len(trunc):] = trunc
+        else:
+            raise ValueError("Padding type '%s' not understood" % padding)
+    return x
+
+
 
 
 def remove_unk(x,n_words):
@@ -19,7 +66,7 @@ def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     random.shuffle(filenames_test)
 
     X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),
-                                                          test_size=0.15, random_state=seed)
+                                                          test_size=0.1, random_state=seed)
     filenames_train = X_train
     filenames_valid = X_valid
     
@@ -47,12 +94,7 @@ def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     valid_X_w2v = vectorizer.transform(valid_X_tokenized)
     test_X_w2v  = vectorizer.transform(test_X_tokenized)
 
-    trainX = np.asarray(train_X_w2v).reshape([len(filenames_train),len(train_X_w2v[0])])
-    validX = np.asarray(valid_X_w2v).reshape([len(filenames_valid),len(valid_X_w2v[0])])  
-    testX  = np.asarray(test_X_w2v).reshape([len(filenames_test),len(test_X_w2v[0])]) 
-    
-
-    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test
+    return train_X_w2v,valid_X_w2v,test_X_w2v,filenames_train,filenames_valid,filenames_test
 
 
 
@@ -66,7 +108,7 @@ def extract_features(filenames_train_valid,filenames_test,seed,n_words,dictionar
          d = cPickle.load(handle)
 
     X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),
-                                                          test_size=0.15, random_state=seed)
+                                                          test_size=0.1, random_state=seed)
     filenames_train = X_train
     filenames_valid = X_valid
     
@@ -142,13 +184,19 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
     return trainY,validY,testY
 
-def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary):
+def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,maxlen=100,n_words=None,dictionary=None):
 
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features(filenames_train_valid,filenames_test,seed,n_words,dictionary)
-    trainX = pad_sequences(trainX, maxlen=100, value=0.)
-    validX = pad_sequences(validX, maxlen=100, value=0.)
-    testX = pad_sequences(testX, maxlen=100, value=0.)
-
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features_w2v(filenames_train_valid,filenames_test,seed)
+    trainX = pad_sequences(trainX, maxlen=maxlen, value=0.)
+    validX = pad_sequences(validX, maxlen=maxlen, value=0.)
+    testX = pad_sequences(testX, maxlen=maxlen, value=0.)
+    print(testX.shape)
+    sys.exit(0)
+ 
+    trainX = np.asarray(train_X_w2v).reshape([len(filenames_train),len(train_X_w2v[0])])
+    validX = np.asarray(valid_X_w2v).reshape([len(filenames_valid),len(valid_X_w2v[0])])  
+    testX  = np.asarray(test_X_w2v).reshape([len(filenames_test),len(test_X_w2v[0])]) 
+    
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
     return trainX,validX,testX,trainY,validY,testY

@@ -114,7 +114,8 @@ def build_network(net_arch,ord_keys,tensorboard_verbose):
 
 @ex.automain
 def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary):
-
+    
+    print("Extracting features...")
     #Train, valid and test sets
     trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 

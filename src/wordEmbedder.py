@@ -91,10 +91,17 @@ class TfidfEmbeddingVectorizer(object):
 
         X_transformed = []
         for X_idx in X:
-            doc_meanVec = np.mean([self.word2vec[w] * self.word2weight[w] for w in X_idx if w in self.word2vec] or [np.zeros(self.dim)], axis=0)
-            X_transformed.append(doc_meanVec)
+            doc_VecList = []
+            for w in X_idx:
+                 if w in self.word2vec:
+                     doc_VecList.append(self.word2vec[w] * self.word2weight[w]) 
+                 else:
+                     doc_VecList.append(np.zeros(self.dim))
+            
+            X_transformed.append(doc_VecList)
+            
 
-        return np.array(X_transformed)
+        return X_transformed
     
    
 
