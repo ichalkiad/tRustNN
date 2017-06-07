@@ -17,8 +17,9 @@ import tensorflow as tf
 import tflearn
 import collections
 import IMDB_dataset.imdb_preprocess as imdb_pre
+import _pickle as cPickle
 from sacred import Experiment
-from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
+from IMDB_dataset.textData import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
 from sacred.observers import FileStorageObserver
 #from sacred.stflow import LogFileWriter
@@ -41,18 +42,11 @@ def config():
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
-    net_arch['input_size'] = 100
-    
-    net_arch['embedding']  = {'input_dim':10000, 'output_dim':128, 'validate_indices':False,
-                               'weights_init':'truncated_normal', 'trainable':True, 'restore':True,
-                               'reuse':False, 'scope':None, 'name':"embed1"}
-   
     net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
                                'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
                                'return_seq':False, 'return_state':False, 'initial_state':None,
                                'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
                                'scope':None,'name':"lstm1"}
-    
     net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
                                'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
                                'restore':True, 'reuse':False, 'scope':None,'name':"fc1"}
@@ -70,34 +64,25 @@ def config():
     run_id = "tflearn_runXYZ"
     n_words = 10000
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
-        
+    embedding_dim = 300
 
-def build_network(net_arch,ord_keys,tensorboard_verbose):
+def build_network(net_arch,ord_keys,tensorboard_verbose,sequence_length,embedding_dim):
 
     # Network building
-    net = tflearn.input_data([None,net_arch['input_size']])
+    net = tflearn.input_data([None,sequence_length,embedding_dim])
     for key in ord_keys:
         value = net_arch[key]
-        
-        if key=='embedding':
-           net = tflearn.embedding(net, input_dim=value['input_dim'], output_dim=value['output_dim'],
-                                   validate_indices=value['validate_indices'],weights_init=value['weights_init'],
-                                   trainable=value['trainable'], restore=value['restore'],reuse=value['reuse'],
-                                   scope=value['scope'],name=value['name'])
-        
         if key=='lstm':
            net = tflearn.lstm(net,n_units=value['n_units'], activation=value['activation'],inner_activation=value['inner_activation'],
                               dropout=value['dropout'], bias=value['bias'], weights_init=value['weights_init'],
                               forget_bias=value['forget_bias'],return_seq=value['return_seq'], return_state=value['return_state'],
                               initial_state=value['initial_state'],dynamic=value['dynamic'], trainable=value['trainable'],
                               restore=value['restore'], reuse=value['reuse'],scope=value['scope'], name=value['name'])
-        
         if key=='fc':
            net = tflearn.fully_connected(net,n_units=value['n_units'], activation=value['activation'], bias=value['bias'],
                                         weights_init=value['weights_init'],bias_init=value['bias_init'], regularizer=value['regularizer'],
                                         weight_decay=value['weight_decay'],trainable=value['trainable'],restore=value['restore'],
                                         reuse=value['reuse'],scope=value['scope'],name=value['name'])
-        
         if key=='output':
            net = tflearn.regression(net,optimizer=value['optimizer'],loss=value['loss'],metric=value['metric'],
                                     learning_rate=value['learning_rate'],dtype=value['dtype'],batch_size=value['batch_size'],
@@ -106,14 +91,13 @@ def build_network(net_arch,ord_keys,tensorboard_verbose):
                                     validation_monitors=value['validation_monitors'],validation_batch_size=value['validation_batch_size'],
                                     name=value['name']) 
 
-    
     model = tflearn.DNN(net, tensorboard_verbose)
 
     return model
 
 
 @ex.automain
-def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary):
+def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim):
     
     print("Extracting features...")
     #Train, valid and test sets
@@ -121,10 +105,13 @@ def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch
 
     print("Training model...")
 
-    model = build_network(net_arch,ord_keys,tensorboard_verbose)
+    model = build_network(net_arch,ord_keys,tensorboard_verbose,trainX.shape[1],embedding_dim)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
     model.save(save_path+run_id+".tfl")
     """
+    with open("test_data"+run_id+".pickle", 'wb') as handle:
+        cPickle.dump((testX,testY), handle)
+    
     with tf.Session() as s:
         swr = tf.summary.FileWriter(run_id, s.graph)
         # _run.info["tensorflow"]["logdirs"] == ["/tmp/1"]
