@@ -7,7 +7,7 @@ from nltk import WordNetLemmatizer
 from nltk import sent_tokenize
 from nltk import pos_tag
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from collections import defaultdict
 
 class NLTKPreprocessor(BaseEstimator, TransformerMixin):
@@ -79,11 +79,12 @@ class TfidfEmbeddingVectorizer(object):
         # if a word was never seen - it must be at least as infrequent
         # as any of the known words - so the default idf is the max of 
         # known idf's
+        
         max_idf = max(tfidf.idf_)
         self.word2weight = defaultdict(
             lambda: max_idf,
             [(w, tfidf.idf_[i]) for w, i in tfidf.vocabulary_.items()])
-       
+        
         return self
         
     def transform(self, X):

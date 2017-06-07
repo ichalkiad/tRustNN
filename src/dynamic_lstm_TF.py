@@ -41,15 +41,18 @@ def config():
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
-    net_arch['input_size'] = 3000000
-    net_arch['embedding']  = {'input_dim':3000000, 'output_dim':300, 'validate_indices':False,
+    net_arch['input_size'] = 100
+    
+    net_arch['embedding']  = {'input_dim':10000, 'output_dim':128, 'validate_indices':False,
                                'weights_init':'truncated_normal', 'trainable':True, 'restore':True,
                                'reuse':False, 'scope':None, 'name':"embed1"}
+   
     net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
                                'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
-                               'return_seq':True, 'return_state':True, 'initial_state':None,
+                               'return_seq':False, 'return_state':False, 'initial_state':None,
                                'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
                                'scope':None,'name':"lstm1"}
+    
     net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
                                'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
                                'restore':True, 'reuse':False, 'scope':None,'name':"fc1"}
@@ -61,10 +64,12 @@ def config():
     ord_keys = net_arch.keys()
     tensorboard_verbose = 3
     show_metric = True
-    batch_size = 1
+    batch_size = 32
     save_path = "/tmp/tflearn_logs/"
     tensorboard_dir = "/tmp/tflearn_logs/"
     run_id = "tflearn_runXYZ"
+    n_words = 10000
+    dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
         
 
 def build_network(net_arch,ord_keys,tensorboard_verbose):
@@ -73,23 +78,26 @@ def build_network(net_arch,ord_keys,tensorboard_verbose):
     net = tflearn.input_data([None,net_arch['input_size']])
     for key in ord_keys:
         value = net_arch[key]
+        
         if key=='embedding':
            net = tflearn.embedding(net, input_dim=value['input_dim'], output_dim=value['output_dim'],
                                    validate_indices=value['validate_indices'],weights_init=value['weights_init'],
                                    trainable=value['trainable'], restore=value['restore'],reuse=value['reuse'],
                                    scope=value['scope'],name=value['name'])
-
+        
         if key=='lstm':
            net = tflearn.lstm(net,n_units=value['n_units'], activation=value['activation'],inner_activation=value['inner_activation'],
                               dropout=value['dropout'], bias=value['bias'], weights_init=value['weights_init'],
                               forget_bias=value['forget_bias'],return_seq=value['return_seq'], return_state=value['return_state'],
                               initial_state=value['initial_state'],dynamic=value['dynamic'], trainable=value['trainable'],
                               restore=value['restore'], reuse=value['reuse'],scope=value['scope'], name=value['name'])
+        
         if key=='fc':
            net = tflearn.fully_connected(net,n_units=value['n_units'], activation=value['activation'], bias=value['bias'],
                                         weights_init=value['weights_init'],bias_init=value['bias_init'], regularizer=value['regularizer'],
                                         weight_decay=value['weight_decay'],trainable=value['trainable'],restore=value['restore'],
                                         reuse=value['reuse'],scope=value['scope'],name=value['name'])
+        
         if key=='output':
            net = tflearn.regression(net,optimizer=value['optimizer'],loss=value['loss'],metric=value['metric'],
                                     learning_rate=value['learning_rate'],dtype=value['dtype'],batch_size=value['batch_size'],
@@ -105,10 +113,12 @@ def build_network(net_arch,ord_keys,tensorboard_verbose):
 
 
 @ex.automain
-def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db):
+def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary):
 
     #Train, valid and test sets
-    trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test)
+    trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+
+    print("Training model...")
 
     model = build_network(net_arch,ord_keys,tensorboard_verbose)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
