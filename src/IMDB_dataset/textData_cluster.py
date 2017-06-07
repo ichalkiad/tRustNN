@@ -24999,5 +24999,3 @@ filenames_train_valid =  ['/home/icha/aclImdb/train/pos/127_7.txt',
 '/home/icha/aclImdb/train/pos/12418_10.txt',
 '/home/icha/aclImdb/train/pos/12417_10.txt',
 '/home/icha/aclImdb/train/pos/12416_10.txt']
-
-

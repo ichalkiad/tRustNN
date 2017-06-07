@@ -3,49 +3,97 @@ import re
 import random
 import numpy as np
 import wordEmbedder as we
-from tflearn.data_utils import to_categorical
+import _pickle as cPickle
+from tflearn.data_utils import to_categorical,pad_sequences
 from sklearn.model_selection import train_test_split
+import sys
+from pathlib import Path
 
 
+def remove_unk(x,n_words):
+    return [[1 if w >= n_words else w for w in sen] for sen in x]
 
-def extract_features(filenames_train_valid,filenames_test,seed):
+def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     
     random.shuffle(filenames_train_valid)
     random.shuffle(filenames_test)
 
     X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),
-                                                          test_size=0.2, random_state=seed)
-
+                                                          test_size=0.15, random_state=seed)
     filenames_train = X_train
     filenames_valid = X_valid
+    
     
     # Load Google's pre-trained Word2Vec model.
     model = gensim.models.KeyedVectors.load_word2vec_format('/home/icha/GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
-
+    
     #Initialize preprocessor
     preprocessor = we.NLTKPreprocessor()
     vectorizer   = we.TfidfEmbeddingVectorizer(w2v)
-
 
     #Tokenization - train_X_tokenized is a list containing lists of words for each review in the passed argument
     train_X_tokenized = preprocessor.transform(filenames_train)
     valid_X_tokenized = preprocessor.transform(filenames_valid)
     test_X_tokenized  = preprocessor.transform(filenames_test)
+    
     #Get TF-IDF weighting terms
     vectorizer.fit(train_X_tokenized)
     vectorizer.fit(valid_X_tokenized)
     vectorizer.fit(test_X_tokenized)
+    
     #Get Word2Vec representation of document weighted with TF-IDF
     train_X_w2v = vectorizer.transform(train_X_tokenized)
     valid_X_w2v = vectorizer.transform(valid_X_tokenized)
     test_X_w2v  = vectorizer.transform(test_X_tokenized)
 
-    trainX = train_X_w2v
-    validX = valid_X_w2v
-    testX  = test_X_w2v
+    trainX = np.asarray(train_X_w2v).reshape([len(filenames_train),len(train_X_w2v[0])])
+    validX = np.asarray(valid_X_w2v).reshape([len(filenames_valid),len(valid_X_w2v[0])])  
+    testX  = np.asarray(test_X_w2v).reshape([len(filenames_test),len(test_X_w2v[0])]) 
+    
 
     return trainX,validX,testX,filenames_train,filenames_valid,filenames_test
+
+
+
+def extract_features(filenames_train_valid,filenames_test,seed,n_words,dictionary):
+    
+    random.shuffle(filenames_train_valid)
+    random.shuffle(filenames_test)
+
+
+    with open(dictionary, 'rb') as handle:
+         d = cPickle.load(handle)
+
+    X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),
+                                                          test_size=0.15, random_state=seed)
+    filenames_train = X_train
+    filenames_valid = X_valid
+    
+    testX = []
+    for i in filenames_test:
+        testX.append(Path(i).read_text())
+    trainX = []
+    for i in filenames_train:
+        trainX.append(Path(i).read_text())
+    validX = []
+    for i in filenames_valid:
+        validX.append(Path(i).read_text())
+
+    vectorizer = we.CountVectorizer(vocabulary=d)
+    testX_tokenized = vectorizer.fit_transform(testX).toarray()
+    del testX
+    testX = remove_unk(testX_tokenized,n_words)
+    trainX_tokenized = vectorizer.fit_transform(trainX).toarray()
+    del trainX
+    trainX = remove_unk(trainX_tokenized,n_words)
+    validX_tokenized = vectorizer.fit_transform(validX).toarray()
+    del validX
+    validX = remove_unk(validX_tokenized,n_words)
+
+    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test
+
+
 
 def extract_labels(filenames_train,filenames_valid,filenames_test):
 
@@ -87,7 +135,6 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
             doc_rating = 1
         validY.append(doc_rating)
 
-
     #Converting labels to binary vectors
     trainY = to_categorical(trainY, nb_classes=2)
     testY = to_categorical(testY, nb_classes=2)
@@ -95,10 +142,13 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
     return trainY,validY,testY
 
+def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary):
 
-def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test):
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features(filenames_train_valid,filenames_test,seed,n_words,dictionary)
+    trainX = pad_sequences(trainX, maxlen=100, value=0.)
+    validX = pad_sequences(validX, maxlen=100, value=0.)
+    testX = pad_sequences(testX, maxlen=100, value=0.)
 
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features(filenames_train_valid,filenames_test,seed)
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
     return trainX,validX,testX,trainY,validY,testY
