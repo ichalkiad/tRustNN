@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 
-def pad_sequences(sequences, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
+def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
     """ pad_sequences.
     Pad each sequence to the same length: the length of the longest sequence.
     If maxlen is provided, any sequence longer than maxlen is truncated to
@@ -29,50 +29,47 @@ def pad_sequences(sequences, maxlen=None, dtype='int32', padding='post', truncat
         x: `numpy array` with dimensions (number_of_sequences, maxlen)
     Credits: From Keras `pad_sequences` function.
     """
-    lengths = [len(s) for s in sequences]
+    lengthsTr = np.max([len(s) for s in trainX])
+    lengthsVd = np.max([len(s) for s in validX])
+    lengthsTe = np.max([len(s) for s in testX])
+    elem_length = len(trainX[0][0])
+    pads = np.zeros((elem_length,))
 
-    nb_samples = len(sequences)
     if maxlen is None:
-        maxlen = np.max(lengths)
+        maxlen = np.max(np.array([lengthsTr,lengthsVd,lengthsTe]))
 
-    x = (np.ones((nb_samples, maxlen)) * value).astype(dtype)
-    for idx, s in enumerate(sequences):
-        if len(s) == 0:
-            continue  # empty list was found
-        if truncating == 'pre':
-            trunc = s[-maxlen:]
-        elif truncating == 'post':
-            trunc = s[:maxlen]
-        else:
-            raise ValueError("Truncating type '%s' not understood" % padding)
-
-        if padding == 'post':
-            x[idx, :len(trunc)] = trunc
-        elif padding == 'pre':
-            x[idx, -len(trunc):] = trunc
-        else:
-            raise ValueError("Padding type '%s' not understood" % padding)
-    return x
-
+    for s in trainX:
+        if len(s) < maxlen:
+           while not len(s)==maxlen:
+               s.append(pads)
+    for s in validX:
+        if len(s) < maxlen:
+           while not len(s)==maxlen:
+               s.append(pads)
+    for s in testX:
+        if len(s) < maxlen:
+           while not len(s)==maxlen:
+               s.append(pads)           
+    return trainX,validX,testX
 
 
 
 def remove_unk(x,n_words):
     return [[1 if w >= n_words else w for w in sen] for sen in x]
 
+
+
 def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     
     random.shuffle(filenames_train_valid)
     random.shuffle(filenames_test)
 
-    X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),
-                                                          test_size=0.1, random_state=seed)
+    X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),test_size=0.1,random_state=seed)
     filenames_train = X_train
     filenames_valid = X_valid
     
-    
     # Load Google's pre-trained Word2Vec model.
-    model = gensim.models.KeyedVectors.load_word2vec_format('/home/icha/GoogleNews-vectors-negative300.bin', binary=True)  
+    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
     
     #Initialize preprocessor
@@ -184,19 +181,15 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
     return trainY,validY,testY
 
-def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,maxlen=100,n_words=None,dictionary=None):
+
+def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None):
 
     trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features_w2v(filenames_train_valid,filenames_test,seed)
-    trainX = pad_sequences(trainX, maxlen=maxlen, value=0.)
-    validX = pad_sequences(validX, maxlen=maxlen, value=0.)
-    testX = pad_sequences(testX, maxlen=maxlen, value=0.)
-    print(testX.shape)
-    sys.exit(0)
- 
-    trainX = np.asarray(train_X_w2v).reshape([len(filenames_train),len(train_X_w2v[0])])
-    validX = np.asarray(valid_X_w2v).reshape([len(filenames_valid),len(valid_X_w2v[0])])  
-    testX  = np.asarray(test_X_w2v).reshape([len(filenames_test),len(test_X_w2v[0])]) 
-    
+    trainX,validX,testX = pad_sequences(trainX, validX, testX, value=0.)
+    trainX = np.array(trainX)
+    validX = np.array(validX)
+    testX  = np.array(testX)
+
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
     return trainX,validX,testX,trainY,validY,testY
