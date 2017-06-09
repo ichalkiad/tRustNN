@@ -58,9 +58,9 @@ def config():
     tensorboard_verbose = 3
     show_metric = True
     batch_size = 1
-    save_path = "/tmp/tflearn_logs/"
-    tensorboard_dir = "/tmp/tflearn_logs/"
-    run_id = "tflearn_runXYZ"
+    save_path = "/home/icha/sacred_models/"
+    tensorboard_dir = "/home/icha/sacred_models/tf_logs/"
+    run_id = "runID"
     n_words = 10000
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
