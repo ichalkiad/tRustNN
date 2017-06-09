@@ -12,23 +12,7 @@ from pathlib import Path
 
 
 def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
-    """ pad_sequences.
-    Pad each sequence to the same length: the length of the longest sequence.
-    If maxlen is provided, any sequence longer than maxlen is truncated to
-    maxlen. Truncation happens off either the beginning or the end (default)
-    of the sequence. Supports pre-padding and post-padding (default).
-    Arguments:
-        sequences: list of lists where each element is a sequence.
-        maxlen: int, maximum length.
-        dtype: type to cast the resulting sequence.
-        padding: 'pre' or 'post', pad either before or after each sequence.
-        truncating: 'pre' or 'post', remove values from sequences larger than
-            maxlen either in the beginning or in the end of the sequence
-        value: float, value to pad the sequences to the desired value.
-    Returns:
-        x: `numpy array` with dimensions (number_of_sequences, maxlen)
-    Credits: From Keras `pad_sequences` function.
-    """
+
     lengthsTr = np.max([len(s) for s in trainX])
     lengthsVd = np.max([len(s) for s in validX])
     lengthsTe = np.max([len(s) for s in testX])
@@ -69,7 +53,7 @@ def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     filenames_valid = X_valid
     
     # Load Google's pre-trained Word2Vec model.
-    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
+    model = gensim.models.KeyedVectors.load_word2vec_format('/home/icha/GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
     
     #Initialize preprocessor

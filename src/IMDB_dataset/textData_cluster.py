@@ -12499,6 +12499,7 @@ filenames_test = ['/home/icha/aclImdb/test/pos/127_10.txt',
 '/home/icha/aclImdb/test/pos/12417_9.txt',
 '/home/icha/aclImdb/test/pos/12416_7.txt']
 
+
 filenames_train_valid =  ['/home/icha/aclImdb/train/pos/127_7.txt',
 '/home/icha/aclImdb/train/pos/126_10.txt',
 '/home/icha/aclImdb/train/pos/125_7.txt',
@@ -24999,3 +25000,4 @@ filenames_train_valid =  ['/home/icha/aclImdb/train/pos/127_7.txt',
 '/home/icha/aclImdb/train/pos/12418_10.txt',
 '/home/icha/aclImdb/train/pos/12417_10.txt',
 '/home/icha/aclImdb/train/pos/12416_10.txt']
+
