@@ -17,7 +17,6 @@ import tensorflow as tf
 import tflearn
 import collections
 import IMDB_dataset.imdb_preprocess as imdb_pre
-import _pickle as cPickle
 from sacred import Experiment
 from IMDB_dataset.textData import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
@@ -55,10 +54,10 @@ def config():
                                'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
                                'name':"xentr"}
 
-    ord_keys = net_arch.keys()
+    net_arch_layers = ['lstm','fc','output']
     tensorboard_verbose = 3
     show_metric = True
-    batch_size = 32
+    batch_size = 1
     save_path = "/tmp/tflearn_logs/"
     tensorboard_dir = "/tmp/tflearn_logs/"
     run_id = "tflearn_runXYZ"
@@ -66,19 +65,19 @@ def config():
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
 
-def build_network(net_arch,ord_keys,tensorboard_verbose,sequence_length,embedding_dim):
+def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim):
 
     # Network building
     net = tflearn.input_data([None,sequence_length,embedding_dim])
-    for key in ord_keys:
+    for key in net_arch_layers:
         value = net_arch[key]
-        if key=='lstm':
+        if 'lstm' in key:
            net = tflearn.lstm(net,n_units=value['n_units'], activation=value['activation'],inner_activation=value['inner_activation'],
                               dropout=value['dropout'], bias=value['bias'], weights_init=value['weights_init'],
                               forget_bias=value['forget_bias'],return_seq=value['return_seq'], return_state=value['return_state'],
                               initial_state=value['initial_state'],dynamic=value['dynamic'], trainable=value['trainable'],
                               restore=value['restore'], reuse=value['reuse'],scope=value['scope'], name=value['name'])
-        if key=='fc':
+        if 'fc' in key:
            net = tflearn.fully_connected(net,n_units=value['n_units'], activation=value['activation'], bias=value['bias'],
                                         weights_init=value['weights_init'],bias_init=value['bias_init'], regularizer=value['regularizer'],
                                         weight_decay=value['weight_decay'],trainable=value['trainable'],restore=value['restore'],
@@ -97,7 +96,7 @@ def build_network(net_arch,ord_keys,tensorboard_verbose,sequence_length,embeddin
 
 
 @ex.automain
-def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim):
+def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim):
     
     print("Extracting features...")
     #Train, valid and test sets
@@ -105,9 +104,12 @@ def train(seed,net_arch,ord_keys,save_path,tensorboard_verbose,show_metric,batch
 
     print("Training model...")
 
-    model = build_network(net_arch,ord_keys,tensorboard_verbose,trainX.shape[1],embedding_dim)
+    model = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim)
+
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
     model.save(save_path+run_id+".tfl")
+    print("Saved model...now exiting...")
+
     """
     with open("test_data"+run_id+".pickle", 'wb') as handle:
         cPickle.dump((testX,testY), handle)
