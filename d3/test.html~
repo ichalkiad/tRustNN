@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>D3 Demos</title>
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+  </head>
+  <body>
+    <script>
+      // All D3 code goes here. For Example:
+      console.log(d3.version); // 4.7.4
+    </script>
+  </body>
+</html>
