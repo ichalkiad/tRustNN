@@ -116,7 +116,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
 
     save_dir = save_path+run_id+"/"
-    if not os.path.exists():
+    if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
