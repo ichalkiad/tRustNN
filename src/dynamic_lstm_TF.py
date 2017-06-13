@@ -13,11 +13,13 @@ References:
 """
 from __future__ import division, print_function, absolute_import
 import sys
+import os
 import tensorflow as tf
 import tflearn
 import collections
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from sacred import Experiment
+from parameter_persistence import export_serial_model
 from IMDB_dataset.textData import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
 from sacred.observers import FileStorageObserver
@@ -45,27 +47,28 @@ def config():
                                'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
                                'return_seq':False, 'return_state':False, 'initial_state':None,
                                'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
-                               'scope':None,'name':"lstm1"}
+                               'scope':None,'name':"lstm"}
     net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
                                'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
-                               'restore':True, 'reuse':False, 'scope':None,'name':"fc1"}
+                               'restore':True, 'reuse':False, 'scope':None,'name':"fc"}
     net_arch['output']     = {'optimizer':'adam','loss':'categorical_crossentropy','metric':'default','learning_rate':0.001,
                                'dtype':tf.float32, 'batch_size':64,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
                                'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
-                               'name':"xentr"}
+                               'name':"output"}
 
     net_arch_layers = ['lstm','fc','output']
     tensorboard_verbose = 3
     show_metric = True
     batch_size = 1
-    save_path = "/home/icha/sacred_models/"
-    tensorboard_dir = "/home/icha/sacred_models/tf_logs/"
+    save_path = "./sacred_models/"
+    tensorboard_dir = "./sacred_models/tf_logs/"
     run_id = "runID"
     n_words = 10000
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
-
-def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim):
+    ckp_path = None #"./sacred_models/ckp/"
+    
+def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,ckp_path=None):
 
     # Network building
     net = tflearn.input_data([None,sequence_length,embedding_dim])
@@ -90,13 +93,13 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
                                     validation_monitors=value['validation_monitors'],validation_batch_size=value['validation_batch_size'],
                                     name=value['name']) 
 
-    model = tflearn.DNN(net, tensorboard_verbose)
+    model = tflearn.DNN(net, tensorboard_verbose,tensorboard_dir=tensorboard_dir,checkpoint_path=ckp_path)
 
     return model
 
 
 @ex.automain
-def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim):
+def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path):
     
     print("Extracting features...")
     #Train, valid and test sets
@@ -104,16 +107,26 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
 
     print("Training model...")
 
-    model = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim)
+    model = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,ckp_path)
 
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
-    model.save(save_path+run_id+".tfl")
-    print("Saved model...now exiting...")
 
+    print("Evaluating trained model on test set...")
+    score = model.evaluate(testX,testY)
+    print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
+
+    save_dir = save_path+run_id+"/"
+    if not os.path.exists():
+        os.makedirs(save_dir)
+    #Save model to json format
+    export_serial_model(model,net_arch_layers,save_dir)
+
+    #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
+    del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
+    model.save(save_dir+"tf_model.tfl")
+    print("Saved model...now exiting...")
+ 
     """
-    with open("test_data"+run_id+".pickle", 'wb') as handle:
-        cPickle.dump((testX,testY), handle)
-    
     with tf.Session() as s:
         swr = tf.summary.FileWriter(run_id, s.graph)
         # _run.info["tensorflow"]["logdirs"] == ["/tmp/1"]
