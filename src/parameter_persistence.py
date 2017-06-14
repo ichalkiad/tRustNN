@@ -2,6 +2,13 @@ import tensorflow as tf
 import tflearn
 import json
 
+
+def split_lstm_output(T,name):
+
+    (o,state) = T
+       
+    return o
+
 def export_serial_model(model,layer_names,save_dir):
 
     network = dict()
@@ -17,6 +24,7 @@ def export_serial_model(model,layer_names,save_dir):
             input, new_input, forget, output = tf.split(layer[0], num_or_size_splits=4, axis=1)
             input_arr     = model.session.run(input).tolist()
             network[l]['input_gate'] = input_arr
+            # New_input_arr is needed if we want to restore network's exact state when we stopped training
             new_input_arr = model.session.run(new_input).tolist()
             network[l]['new_input'] = new_input_arr
             forget_arr    = model.session.run(forget).tolist()

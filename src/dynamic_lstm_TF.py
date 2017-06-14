@@ -19,7 +19,7 @@ import tflearn
 import collections
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from sacred import Experiment
-from parameter_persistence import export_serial_model
+from parameter_persistence import export_serial_model,split_lstm_output
 from IMDB_dataset.textData import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
 from sacred.observers import FileStorageObserver
@@ -28,6 +28,7 @@ from sacred.observers import FileStorageObserver
 ex = Experiment('IMDBMovieReview-LSTM')
    
 #embedding_layer = Embedding(input_dim=word_model.syn0.shape[0], output_dim=word_model.syn0.shape[1], weights=[word_model.syn0]
+
 
 @ex.config
 def config():
@@ -40,21 +41,6 @@ def config():
         print("Using local file storage for logging")        
         ex.observers.append(FileStorageObserver.create('SacredRunLog'))
 
-    
-    #Dictionary describing the architecture of the network
-    net_arch = collections.OrderedDict()
-    net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
-                               'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
-                               'return_seq':False, 'return_state':False, 'initial_state':None,
-                               'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
-                               'scope':None,'name':"lstm"}
-    net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
-                               'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
-                               'restore':True, 'reuse':False, 'scope':None,'name':"fc"}
-    net_arch['output']     = {'optimizer':'adam','loss':'categorical_crossentropy','metric':'default','learning_rate':0.001,
-                               'dtype':tf.float32, 'batch_size':64,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
-                               'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
-                               'name':"output"}
 
     net_arch_layers = ['lstm','fc','output']
     tensorboard_verbose = 3
@@ -67,12 +53,31 @@ def config():
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
     ckp_path = None #"./sacred_models/ckp/"
+        
+    
+    #Dictionary describing the architecture of the network
+    net_arch = collections.OrderedDict()
+    net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
+                               'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
+                               'return_seq':False, 'return_state':True, 'initial_state':None,
+                               'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
+                               'scope':None,'name':"lstm"}
+    net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
+                               'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
+                               'restore':True, 'reuse':False, 'scope':None,'name':"fc"}
+    net_arch['output']     = {'optimizer':'adam','loss':'categorical_crossentropy','metric':'default','learning_rate':0.001,
+                               'dtype':tf.float32, 'batch_size':64,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
+                               'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
+                               'name':"output"}
+
+    
     
 def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,ckp_path=None):
 
     # Network building
     net = tflearn.input_data([None,sequence_length,embedding_dim])
-    for key in net_arch_layers:
+    for k in range(len(net_arch_layers)):
+        key = net_arch_layers[k]
         value = net_arch[key]
         if 'lstm' in key:
            net = tflearn.lstm(net,n_units=value['n_units'], activation=value['activation'],inner_activation=value['inner_activation'],
@@ -81,6 +86,11 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
                               initial_state=value['initial_state'],dynamic=value['dynamic'], trainable=value['trainable'],
                               restore=value['restore'], reuse=value['reuse'],scope=value['scope'], name=value['name'])
         if 'fc' in key:
+            
+           #Add lstm output splitting layer if necessary
+           if ('lstm' in net_arch_layers[k-1]) and net_arch[net_arch_layers[k-1]]['return_state']==True: 
+               net = tflearn.custom_layer(net,split_lstm_output,name='split_layer')
+
            net = tflearn.fully_connected(net,n_units=value['n_units'], activation=value['activation'], bias=value['bias'],
                                         weights_init=value['weights_init'],bias_init=value['bias_init'], regularizer=value['regularizer'],
                                         weight_decay=value['weight_decay'],trainable=value['trainable'],restore=value['restore'],
