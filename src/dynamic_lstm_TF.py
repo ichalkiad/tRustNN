@@ -24,12 +24,8 @@ from parameter_persistence import export_serial_model,export_serial_lstm_data
 from IMDB_dataset.textData import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
 from sacred.observers import FileStorageObserver
-#from sacred.stflow import LogFileWriter
 
 ex = Experiment('IMDBMovieReview-LSTM')
-   
-#embedding_layer = Embedding(input_dim=word_model.syn0.shape[0], output_dim=word_model.syn0.shape[1], weights=[word_model.syn0]
-
 
 @ex.config
 def config():
@@ -54,7 +50,7 @@ def config():
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
     ckp_path = None #"./sacred_models/ckp/"
-    internals = "lstm"    
+    internals = "all"    
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -138,17 +134,16 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
-    export_serial_lstm_data(model,layer_outputs,trainX,internals,save_dir)
+
+    #Get model's internals for 'feed' input
+    feed = trainX
+    export_serial_lstm_data(model,layer_outputs,feed,internals,save_dir)
     
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
     print("Saved model...now exiting...")
  
-    """
-    with tf.Session() as s:
-        swr = tf.summary.FileWriter(run_id, s.graph)
-        # _run.info["tensorflow"]["logdirs"] == ["/tmp/1"]
-    """

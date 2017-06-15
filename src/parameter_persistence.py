@@ -3,27 +3,25 @@ import tflearn
 import json
 
 
-def export_serial_lstm_data(model,layer_outputs,trainX,data="lstm",save_dir="/tmp/"):
+def export_serial_lstm_data(model,layer_outputs,feed,data="lstm",save_dir="/tmp/"):
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
     
     internals = dict()
+
     with model.session.as_default():
-        print(layer_outputs["fc_output"].eval(feed_dict={'InputData/X:0':trainX}))
-        
-    keys = [k for k in list(layer_outputs.keys()) if "lstm" in k]
-    for k in keys:
-        if "output" in k:
-            internals[k] = model.session.run(layer_outputs[k]).tolist()
-        if "cell" in k:
-            n = k+"-cell"
-            internals[n] = model.session.run(layer_outputs[k])[0].tolist()
-            n = k+"-hidden"
-            internals[n] = model.session.run(layer_outputs[k])[1].tolist()
-    """
-    if data == "all":
-        internals[k] = model.session.run(layer_outputs[k])
-        print(internals[k])
-    """     
+            
+        keys = [k for k in list(layer_outputs.keys()) if "lstm" in k]
+        for k in keys:
+            if "output" in k:
+                internals[k] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
+            if "cell" in k:
+                internals[k] = {"cell": layer_outputs[k][0].eval(feed_dict={'InputData/X:0':feed}).tolist(), "hidden":layer_outputs[k][1].eval(feed_dict={'InputData/X:0':feed}).tolist()}
+                    
+            if data == "all":
+                keys = [k for k in list(layer_outputs.keys()) if "fc" in k]
+                for k in keys:
+                    internals[k] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
+            
     with open(save_dir+"model_internals.json", 'w') as f:
          json.dump(internals, f)
 
