@@ -16,10 +16,11 @@ import sys
 import os
 import tensorflow as tf
 import tflearn
+import _pickle
 import collections
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from sacred import Experiment
-from parameter_persistence import export_serial_model,split_lstm_output
+from parameter_persistence import export_serial_model,export_serial_lstm_data
 from IMDB_dataset.textData import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
 from sacred.observers import FileStorageObserver
@@ -53,7 +54,7 @@ def config():
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
     ckp_path = None #"./sacred_models/ckp/"
-        
+    internals = "lstm"    
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -76,27 +77,34 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
     # Network building
     net = tflearn.input_data([None,sequence_length,embedding_dim])
+    layer_outputs = dict()
+    prev_incoming = net
+    
     for k in range(len(net_arch_layers)):
         key = net_arch_layers[k]
         value = net_arch[key]
         if 'lstm' in key:
-           net = tflearn.lstm(net,n_units=value['n_units'], activation=value['activation'],inner_activation=value['inner_activation'],
-                              dropout=value['dropout'], bias=value['bias'], weights_init=value['weights_init'],
-                              forget_bias=value['forget_bias'],return_seq=value['return_seq'], return_state=value['return_state'],
-                              initial_state=value['initial_state'],dynamic=value['dynamic'], trainable=value['trainable'],
-                              restore=value['restore'], reuse=value['reuse'],scope=value['scope'], name=value['name'])
+            output, state = tflearn.lstm(prev_incoming,n_units=value['n_units'], activation=value['activation'],
+                                         inner_activation=value['inner_activation'],dropout=value['dropout'], bias=value['bias'],
+                                         weights_init=value['weights_init'],forget_bias=value['forget_bias'],return_seq=value['return_seq'],
+                                         return_state=value['return_state'],initial_state=value['initial_state'],dynamic=value['dynamic'],
+                                         trainable=value['trainable'],restore=value['restore'], reuse=value['reuse'],scope=value['scope'],
+                                         name=value['name'])
+            n = key+"_output" 
+            layer_outputs[n] = output
+            n = key+"_cell_state"
+            layer_outputs[n] = state
+            prev_incoming = output
         if 'fc' in key:
-            
-           #Add lstm output splitting layer if necessary
-           if ('lstm' in net_arch_layers[k-1]) and net_arch[net_arch_layers[k-1]]['return_state']==True: 
-               net = tflearn.custom_layer(net,split_lstm_output,name='split_layer')
-
-           net = tflearn.fully_connected(net,n_units=value['n_units'], activation=value['activation'], bias=value['bias'],
+            fc_output = tflearn.fully_connected(prev_incoming,n_units=value['n_units'], activation=value['activation'], bias=value['bias'],
                                         weights_init=value['weights_init'],bias_init=value['bias_init'], regularizer=value['regularizer'],
                                         weight_decay=value['weight_decay'],trainable=value['trainable'],restore=value['restore'],
                                         reuse=value['reuse'],scope=value['scope'],name=value['name'])
+            n = key+"_output"
+            layer_outputs[n] = fc_output
+            prev_incoming = fc_output
         if key=='output':
-           net = tflearn.regression(net,optimizer=value['optimizer'],loss=value['loss'],metric=value['metric'],
+           net = tflearn.regression(prev_incoming,optimizer=value['optimizer'],loss=value['loss'],metric=value['metric'],
                                     learning_rate=value['learning_rate'],dtype=value['dtype'],batch_size=value['batch_size'],
                                     shuffle_batches=value['shuffle_batches'],to_one_hot=value['to_one_hot'],n_classes=value['n_classes'],
                                     trainable_vars=value['trainable_vars'],restore=value['restore'],op_name=value['op_name'],
@@ -105,32 +113,35 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
     model = tflearn.DNN(net, tensorboard_verbose,tensorboard_dir=tensorboard_dir,checkpoint_path=ckp_path)
 
-    return model
+    return model,layer_outputs
 
 
 @ex.automain
-def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path):
+def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals):
     
     print("Extracting features...")
     #Train, valid and test sets
-    trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    #trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
+    with open("./trainValid.pickle","rb") as handle:
+         trainX,validX,trainY,validY = _pickle.load(handle)
+    
     print("Training model...")
 
-    model = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,ckp_path)
-
+    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
     print("Evaluating trained model on test set...")
-    score = model.evaluate(testX,testY)
-    print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
-
+    #score = model.evaluate(testX,testY)
+    #print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
+   
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
-
+    export_serial_lstm_data(model,layer_outputs,trainX,internals,save_dir)
+    
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
