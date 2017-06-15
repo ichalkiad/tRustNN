@@ -3,11 +3,30 @@ import tflearn
 import json
 
 
-def split_lstm_output(T,name):
+def export_serial_lstm_data(model,layer_outputs,trainX,data="lstm",save_dir="/tmp/"):
+# data="lstm" for LSTM data or "all" for LSTM + FC layer data
+    
+    internals = dict()
+    with model.session.as_default():
+        print(layer_outputs["fc_output"].eval(feed_dict={'InputData/X:0':trainX}))
+        
+    keys = [k for k in list(layer_outputs.keys()) if "lstm" in k]
+    for k in keys:
+        if "output" in k:
+            internals[k] = model.session.run(layer_outputs[k]).tolist()
+        if "cell" in k:
+            n = k+"-cell"
+            internals[n] = model.session.run(layer_outputs[k])[0].tolist()
+            n = k+"-hidden"
+            internals[n] = model.session.run(layer_outputs[k])[1].tolist()
+    """
+    if data == "all":
+        internals[k] = model.session.run(layer_outputs[k])
+        print(internals[k])
+    """     
+    with open(save_dir+"model_internals.json", 'w') as f:
+         json.dump(internals, f)
 
-    (o,state) = T
-       
-    return o
 
 def export_serial_model(model,layer_names,save_dir):
 
@@ -39,6 +58,7 @@ def export_serial_model(model,layer_names,save_dir):
         network[l]['b'] = data_arr.tolist()
 
 
+    
     with open(save_dir+"model.json", 'w') as f:
          json.dump(network, f)
    
