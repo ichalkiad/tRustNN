@@ -7,13 +7,20 @@ def export_serial_lstm_data(model,layer_outputs,feed,data="lstm",save_dir="/tmp/
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
     
     internals = dict()
-
     with model.session.as_default():
             
         keys = [k for k in list(layer_outputs.keys()) if "lstm" in k]
         for k in keys:
             if "output" in k:
-                internals[k] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
+                if isinstance(layer_outputs[k],list):
+                    h = dict()
+                    i = 0
+                    for history in layer_outputs[k]:
+                        h[str(i)] = history.eval(feed_dict={'InputData/X:0':feed}).tolist()
+                        i = i + 1
+                    internals[k] = h
+                else:
+                    internals[k] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
             if "cell" in k:
                 internals[k] = {"cell": layer_outputs[k][0].eval(feed_dict={'InputData/X:0':feed}).tolist(), "hidden":layer_outputs[k][1].eval(feed_dict={'InputData/X:0':feed}).tolist()}
                     
