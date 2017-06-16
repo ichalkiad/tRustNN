@@ -16,12 +16,11 @@ import sys
 import os
 import tensorflow as tf
 import tflearn
-import _pickle
 import collections
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from sacred import Experiment
 from parameter_persistence import export_serial_model,export_serial_lstm_data
-from IMDB_dataset.textData import filenames_train_valid, filenames_test
+from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
 from sacred.observers import MongoObserver
 from sacred.observers import FileStorageObserver
 
@@ -117,19 +116,16 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets
-    #trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
-    with open("./trainValid.pickle","rb") as handle:
-         trainX,validX,trainY,validY = _pickle.load(handle)
-    
     print("Training model...")
 
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
     print("Evaluating trained model on test set...")
-    #score = model.evaluate(testX,testY)
-    #print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
+    score = model.evaluate(testX,testY)
+    print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
    
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
@@ -140,8 +136,13 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
 
     #Get model's internals for 'feed' input
     feed = trainX
-    export_serial_lstm_data(model,layer_outputs,feed,internals,save_dir)
-    
+    export_serial_lstm_data(model,layer_outputs,feed,internals,save_dir+"train_")
+    feed = validX
+    export_serial_lstm_data(model,layer_outputs,feed,internals,save_dir+"valid_")
+    feed = testX
+    export_serial_lstm_data(model,layer_outputs,feed,internals,save_dir+"test_")
+
+
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
