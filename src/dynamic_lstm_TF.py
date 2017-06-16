@@ -75,7 +75,7 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
     net = tflearn.input_data([None,sequence_length,embedding_dim])
     layer_outputs = dict()
     prev_incoming = net
-    
+
     for k in range(len(net_arch_layers)):
         key = net_arch_layers[k]
         value = net_arch[key]
@@ -90,7 +90,10 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
             layer_outputs[n] = output
             n = key+"_cell_state"
             layer_outputs[n] = state
-            prev_incoming = output
+            if ("lstm" not in net_arch_layers[k+1]) and (value['return_seq']==True):
+                prev_incoming = output[-1]
+            else:
+                prev_incoming = output
         if 'fc' in key:
             fc_output = tflearn.fully_connected(prev_incoming,n_units=value['n_units'], activation=value['activation'], bias=value['bias'],
                                         weights_init=value['weights_init'],bias_init=value['bias_init'], regularizer=value['regularizer'],
@@ -117,10 +120,11 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets
-    #trainX,validX,testX,trainY,validY,testY = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    #trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
+    
     with open("./trainValid.pickle","rb") as handle:
-         trainX,validX,trainY,validY = _pickle.load(handle)
+         trainX,validX,trainY,validY,filenames_train,filenames_valid = _pickle.load(handle)
     
     print("Training model...")
 
@@ -140,7 +144,8 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
 
     #Get model's internals for 'feed' input
     feed = trainX
-    export_serial_lstm_data(model,layer_outputs,feed,internals,save_dir)
+    input_files = filenames_train
+    export_serial_lstm_data(model,layer_outputs,feed,filenames_train,internals,save_dir)
     
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
