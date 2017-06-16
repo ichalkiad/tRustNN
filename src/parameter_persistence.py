@@ -1,9 +1,9 @@
 import tensorflow as tf
+import numpy as np
 import tflearn
 import json
 
-
-def export_serial_lstm_data(model,layer_outputs,feed,data="lstm",save_dir="/tmp/"):
+def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",save_dir="/tmp/"):
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
     
     internals = dict()
@@ -13,11 +13,13 @@ def export_serial_lstm_data(model,layer_outputs,feed,data="lstm",save_dir="/tmp/
         for k in keys:
             if "output" in k:
                 if isinstance(layer_outputs[k],list):
-                    h = dict()
-                    i = 0
+                    currentStepOutput = []
                     for history in layer_outputs[k]:
-                        h[str(i)] = history.eval(feed_dict={'InputData/X:0':feed}).tolist()
-                        i = i + 1
+                        currentStepOutput.append(history.eval(feed_dict={'InputData/X:0':feed}))
+                    totalDataOutput = np.stack(currentStepOutput,axis=0)
+                    h = dict()
+                    for i in range(len(input_files)):
+                        h[input_files[i]] = totalDataOutput[:,i,:].tolist()
                     internals[k] = h
                 else:
                     internals[k] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
