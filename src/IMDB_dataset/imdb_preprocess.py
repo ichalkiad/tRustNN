@@ -53,7 +53,7 @@ def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     filenames_valid = X_valid
     
     # Load Google's pre-trained Word2Vec model.
-    model = gensim.models.KeyedVectors.load_word2vec_format('/home/icha/GoogleNews-vectors-negative300.bin', binary=True)  
+    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
     
     #Initialize preprocessor
@@ -173,7 +173,7 @@ def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,d
     trainX = np.array(trainX)
     validX = np.array(validX)
     testX  = np.array(testX)
-
+    
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
-    return trainX,validX,testX,trainY,validY,testY
+    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid
