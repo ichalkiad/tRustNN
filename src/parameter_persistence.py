@@ -1,12 +1,13 @@
 import tensorflow as tf
 import numpy as np
+import collections
 import tflearn
 import json
 
 def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",save_dir="/tmp/"):
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
     
-    internals = dict()
+    internals = collections.OrderedDict()
     with model.session.as_default():
             
         keys = [k for k in list(layer_outputs.keys()) if "lstm" in k]
@@ -17,7 +18,7 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                     for history in layer_outputs[k]:
                         currentStepOutput.append(history.eval(feed_dict={'InputData/X:0':feed}))
                     totalDataOutput = np.stack(currentStepOutput,axis=0)
-                    h = dict()
+                    h = collections.OrderedDict()
                     for i in range(len(input_files)):
                         h[input_files[i]] = totalDataOutput[:,i,:].tolist()
                     internals[k] = h
@@ -37,12 +38,12 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
 
 def export_serial_model(model,layer_names,save_dir):
 
-    network = dict()
+    network = collections.OrderedDict()
     
     for l in layer_names:
         if "output" in l:
             break
-        network[l] = dict()
+        network[l] = collections.OrderedDict()
         layer = tflearn.variables.get_layer_variables_by_name(l)
         if "lstm" in l:
             data_arr = model.get_weights(layer[0])

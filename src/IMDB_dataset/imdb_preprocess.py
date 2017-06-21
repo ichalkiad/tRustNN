@@ -1,14 +1,14 @@
-import gensim
-import re
-import random
-import numpy as np
+from sklearn.model_selection import train_test_split
+from tflearn.data_utils import to_categorical
 import wordEmbedder as we
 import _pickle as cPickle
-from tflearn.data_utils import to_categorical
-from sklearn.model_selection import train_test_split
-import sys
 from pathlib import Path
-
+import numpy as np
+import collections
+import gensim
+import random
+import sys
+import re
 
 def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
 
@@ -165,9 +165,9 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
     return trainY,validY,testY
 
 
-def get_test_json(filenames_test):
+def get_input_json(filenames):
 
-    random.shuffle(filenames_test)
+    random.shuffle(filenames)
 
     # Load Google's pre-trained Word2Vec model.
     model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
@@ -177,16 +177,16 @@ def get_test_json(filenames_test):
     preprocessor = we.NLTKPreprocessor()
     vectorizer   = we.TfidfEmbeddingVectorizer(w2v)
 
-    test_X_tokenized  = preprocessor.transform(filenames_test)
-    vectorizer.fit(test_X_tokenized)
-    test_X_w2v  = vectorizer.transform(test_X_tokenized)
+    X_tokenized  = preprocessor.transform(filenames)
+    vectorizer.fit(X_tokenized)
+    X_w2v  = vectorizer.transform(X_tokenized)
 
-    data = dict()
-    for i in range(len(filenames_test)):
-        review = dict()
-        for j in range(len(test_X_tokenized[i])):
-            review[test_X_tokenized[i][j]] = test_X_w2v[i][j].tolist()
-        data[filenames_test[i]] = review
+    data = collections.OrderedDict()
+    for i in range(len(filenames)):
+        review = collections.OrderedDict()
+        for j in range(len(X_tokenized[i])):
+            review[X_tokenized[i][j]] = X_w2v[i][j].tolist()
+        data[filenames[i]] = review
         
     return data
 

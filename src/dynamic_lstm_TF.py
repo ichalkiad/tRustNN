@@ -12,17 +12,18 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
+from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
+from parameter_persistence import export_serial_model,export_serial_lstm_data
+from sacred.observers import FileStorageObserver
+import IMDB_dataset.imdb_preprocess as imdb_pre
+from sacred.observers import MongoObserver
+from sacred import Experiment
+import tensorflow as tf
+import collections
+import tflearn
+import json
 import sys
 import os
-import tensorflow as tf
-import tflearn
-import collections
-import IMDB_dataset.imdb_preprocess as imdb_pre
-from sacred import Experiment
-from parameter_persistence import export_serial_model,export_serial_lstm_data
-from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
-from sacred.observers import MongoObserver
-from sacred.observers import FileStorageObserver
 
 ex = Experiment('IMDBMovieReview-LSTM')
 
@@ -68,7 +69,7 @@ def config():
 
     
     
-def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,ckp_path=None):
+def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,ckp_path=None):
 
     # Network building
     net = tflearn.input_data([None,sequence_length,embedding_dim])
@@ -103,10 +104,10 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
             prev_incoming = fc_output
         if key=='output':
            net = tflearn.regression(prev_incoming,optimizer=value['optimizer'],loss=value['loss'],metric=value['metric'],
-                                    learning_rate=value['learning_rate'],dtype=value['dtype'],batch_size=value['batch_size'],
+                                    learning_rate=value['learning_rate'],dtype=value['dtype'],batch_size=batch_size,
                                     shuffle_batches=value['shuffle_batches'],to_one_hot=value['to_one_hot'],n_classes=value['n_classes'],
                                     trainable_vars=value['trainable_vars'],restore=value['restore'],op_name=value['op_name'],
-                                    validation_monitors=value['validation_monitors'],validation_batch_size=value['validation_batch_size'],
+                                    validation_monitors=value['validation_monitors'],validation_batch_size=batch_size,
                                     name=value['name']) 
 
     model = tflearn.DNN(net, tensorboard_verbose,tensorboard_dir=tensorboard_dir,checkpoint_path=ckp_path)
@@ -119,15 +120,11 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets
-    #trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
-    
-    with open("./trainValid.pickle","rb") as handle:
-         trainX,validX,trainY,validY,filenames_train,filenames_valid = _pickle.load(handle)
-    
     print("Training model...")
 
-    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,ckp_path)
+    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
     print("Evaluating trained model on test set...")
@@ -142,9 +139,22 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     export_serial_model(model,net_arch_layers,save_dir)
 
     #Get model's internals for 'feed' input
+    """
     feed = trainX
     input_files = filenames_train
-    export_serial_lstm_data(model,layer_outputs,feed,filenames_train,internals,save_dir)
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"train_")
+
+    feed = validX
+    input_files = filenames_valid
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
+    """
+    feed = testX
+    input_files = filenames_test
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
+    d = imdb_pre.get_input_json(input_files)
+    with open("./bokeh_vis/test_data_input.json", "w") as f:
+        json.dump(d, f)
+     
     
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
