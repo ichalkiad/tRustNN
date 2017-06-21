@@ -176,4 +176,4 @@ def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,d
 
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
-    return trainX,validX,testX,trainY,validY,testY
+    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid
