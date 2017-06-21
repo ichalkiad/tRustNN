@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 
 
-
 def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
 
     lengthsTr = np.max([len(s) for s in trainX])
@@ -53,7 +52,7 @@ def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     filenames_valid = X_valid
     
     # Load Google's pre-trained Word2Vec model.
-    model = gensim.models.KeyedVectors.load_word2vec_format('/home/icha/GoogleNews-vectors-negative300.bin', binary=True)  
+    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
     
     #Initialize preprocessor
@@ -166,6 +165,32 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
     return trainY,validY,testY
 
 
+def get_test_json(filenames_test):
+
+    random.shuffle(filenames_test)
+
+    # Load Google's pre-trained Word2Vec model.
+    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
+    w2v   = dict(zip(model.index2word, model.syn0))
+    
+    #Initialize preprocessor
+    preprocessor = we.NLTKPreprocessor()
+    vectorizer   = we.TfidfEmbeddingVectorizer(w2v)
+
+    test_X_tokenized  = preprocessor.transform(filenames_test)
+    vectorizer.fit(test_X_tokenized)
+    test_X_w2v  = vectorizer.transform(test_X_tokenized)
+
+    data = dict()
+    for i in range(len(filenames_test)):
+        review = dict()
+        for j in range(len(test_X_tokenized[i])):
+            review[test_X_tokenized[i][j]] = test_X_w2v[i][j].tolist()
+        data[filenames_test[i]] = review
+        
+    return data
+
+
 def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None):
 
     trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features_w2v(filenames_train_valid,filenames_test,seed)
@@ -173,7 +198,7 @@ def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,d
     trainX = np.array(trainX)
     validX = np.array(validX)
     testX  = np.array(testX)
-
+    
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
     return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid
