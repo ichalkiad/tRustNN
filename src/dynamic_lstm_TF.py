@@ -11,18 +11,20 @@ References:
 
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
+
+from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
+from parameter_persistence import export_serial_model,export_serial_lstm_data
 from __future__ import division, print_function, absolute_import
+from sacred.observers import FileStorageObserver
+import IMDB_dataset.imdb_preprocess as imdb_pre
+from sacred.observers import MongoObserver
+from sacred import Experiment
+import tensorflow as tf
+import collections
+import tflearn
+import json
 import sys
 import os
-import tensorflow as tf
-import tflearn
-import collections
-import IMDB_dataset.imdb_preprocess as imdb_pre
-from sacred import Experiment
-from parameter_persistence import export_serial_model,export_serial_lstm_data
-from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
-from sacred.observers import MongoObserver
-from sacred.observers import FileStorageObserver
 
 ex = Experiment('IMDBMovieReview-LSTM')
 
@@ -138,6 +140,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     export_serial_model(model,net_arch_layers,save_dir)
 
     #Get model's internals for 'feed' input
+    """
     feed = trainX
     input_files = filenames_train
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"train_")
@@ -145,11 +148,14 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     feed = validX
     input_files = filenames_valid
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
-
+    """
     feed = testX
     input_files = filenames_test
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
-
+    d = imdb_pre.get_input_json(input_files)
+    with open("./bokeh_vis/test_data_input.json", "w") as f:
+        json.dump(d, f)
+     
     
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
