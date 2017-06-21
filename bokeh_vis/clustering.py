@@ -70,7 +70,7 @@ def clustering(X, algorithm, n_clusters):
 
 
 
-def apply_cluster(data,algorithm,n_clusters,tools):
+def apply_cluster(data,algorithm,n_clusters):
 
     spectral = np.hstack([Spectral6] * 20)
 
@@ -78,11 +78,8 @@ def apply_cluster(data,algorithm,n_clusters,tools):
     colors = [spectral[i] for i in y_pred]
 
     source = ColumnDataSource(data=dict(x=x_cl[:, 0], y=x_cl[:, 1], colors=colors))
-    plot = figure(toolbar_location=None, title=algorithm,tools=tools)
-    plot.circle('x', 'y', fill_color='colors', line_color=None, source=source)
 
-    
-    return source, plot, spectral
+    return source, colors, spectral
 
 
 def get_cluster_algorithms():
