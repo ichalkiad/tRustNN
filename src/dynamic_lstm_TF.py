@@ -119,12 +119,8 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets
-    #trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
-    
-    with open("./trainValid.pickle","rb") as handle:
-         trainX,validX,trainY,validY,filenames_train,filenames_valid = _pickle.load(handle)
-    
     print("Training model...")
 
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,ckp_path)
@@ -144,7 +140,16 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     #Get model's internals for 'feed' input
     feed = trainX
     input_files = filenames_train
-    export_serial_lstm_data(model,layer_outputs,feed,filenames_train,internals,save_dir)
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"train_")
+
+    feed = validX
+    input_files = filenames_valid
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
+
+    feed = testX
+    input_files = filenames_test
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
+
     
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
