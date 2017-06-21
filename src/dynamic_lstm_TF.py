@@ -11,10 +11,9 @@ References:
 
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
-
+from __future__ import division, print_function, absolute_import
 from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
-from __future__ import division, print_function, absolute_import
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from sacred.observers import MongoObserver
@@ -70,7 +69,7 @@ def config():
 
     
     
-def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,ckp_path=None):
+def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,ckp_path=None):
 
     # Network building
     net = tflearn.input_data([None,sequence_length,embedding_dim])
@@ -105,10 +104,10 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
             prev_incoming = fc_output
         if key=='output':
            net = tflearn.regression(prev_incoming,optimizer=value['optimizer'],loss=value['loss'],metric=value['metric'],
-                                    learning_rate=value['learning_rate'],dtype=value['dtype'],batch_size=value['batch_size'],
+                                    learning_rate=value['learning_rate'],dtype=value['dtype'],batch_size=batch_size,
                                     shuffle_batches=value['shuffle_batches'],to_one_hot=value['to_one_hot'],n_classes=value['n_classes'],
                                     trainable_vars=value['trainable_vars'],restore=value['restore'],op_name=value['op_name'],
-                                    validation_monitors=value['validation_monitors'],validation_batch_size=value['validation_batch_size'],
+                                    validation_monitors=value['validation_monitors'],validation_batch_size=batch_size,
                                     name=value['name']) 
 
     model = tflearn.DNN(net, tensorboard_verbose,tensorboard_dir=tensorboard_dir,checkpoint_path=ckp_path)
@@ -125,7 +124,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
 
     print("Training model...")
 
-    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,ckp_path)
+    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
     print("Evaluating trained model on test set...")
