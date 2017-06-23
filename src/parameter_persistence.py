@@ -27,10 +27,15 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
             if "cell" in k:
                 internals[k] = {"cell": layer_outputs[k][0].eval(feed_dict={'InputData/X:0':feed}).tolist(), "hidden":layer_outputs[k][1].eval(feed_dict={'InputData/X:0':feed}).tolist()}
                     
-            if data == "all":
-                keys = [k for k in list(layer_outputs.keys()) if "fc" in k]
-                for k in keys:
-                    internals[k] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
+        if data == "all":
+           keys = [k for k in list(layer_outputs.keys()) if "fc" in k]
+           for k in keys:
+               data_out = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed})
+               h = collections.OrderedDict()
+               for i in range(len(input_files)):
+                   h[input_files[i]] = data_out[i,:].tolist()
+               internals[k] = h
+               
             
     with open(save_dir+"model_internals.json", 'w') as f:
          json.dump(internals, f)
