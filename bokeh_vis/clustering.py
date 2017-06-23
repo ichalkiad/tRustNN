@@ -7,7 +7,7 @@ from bokeh.models import ColumnDataSource, Select, Slider
 from bokeh.plotting import figure
 from bokeh.palettes import Spectral6
 
-from sklearn import cluster, datasets
+from sklearn import cluster
 from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import StandardScaler
 

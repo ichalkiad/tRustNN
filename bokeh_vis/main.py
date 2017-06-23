@@ -9,6 +9,7 @@ from sklearn.decomposition import PCA
 import random
 from bokeh.layouts import row, widgetbox, column
 import clustering
+import dim_reduction
 
 def get_selections(keys):
     
@@ -26,19 +27,17 @@ def get_clustering_selections(algorithms):
     algorithm_select = Select(value='MiniBatchKMeans',title='Select algorithm:',width=200, options=algorithms)
     cluster_slider = Slider(title="Number of clusters",value=2.0,start=2.0,end=10.0,step=1,width=400)
 
-
     return (algorithm_select,cluster_slider)
 
 
-def get_lstmGate_source(lstm,gate,data):
+def get_projection_selections(algorithms):
 
-    pca = PCA(n_components=2)
-    x = data[lstm][gate]
-    x_pca = pca.fit_transform(np.transpose(x))
-
-    source = ColumnDataSource(data=dict(x=x_pca[:,0],y=x_pca[:,1],z=np.array([i for i in range(x_pca.shape[0])])))
+    algorithm_select = Select(value='PCA',title='Select algorithm:',width=200, options=algorithms)
+    knn_slider = Slider(title="Number of neighbors",value=5.0,start=5.0,end=30.0,step=1,width=200)
+    dim_slider = Slider(title="Number of dimensions",value=2,start=2,end=3,step=1,width=200)
     
-    return source
+    return (algorithm_select,knn_slider,dim_slider)
+
 
 
 def update_source(attrname, old, new):
@@ -46,13 +45,15 @@ def update_source(attrname, old, new):
     layer_value = gate_selections[0].value
     gate_value  = gate_selections[1].value
 
-    pca = PCA(n_components=2)
-   
     x = data[layer_value][gate_value]
 
-    x_pca = pca.fit_transform(np.transpose(x))
-    
-    source.data = dict(x=x_pca[:,0],y=x_pca[:,1],z=np.array([i for i in range(x_pca.shape[0])]))
+    #update dimension reduction source
+    algorithm = projection_selections[0].value
+    knn = int(projection_selections[1].value)
+    dimensions = int(projection_selections[2].value)
+    x_pr = dim_reduction.project(data_pr, algorithm, knn, dimensions, labels)
+    project_plot.title.text = algorithm
+    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1])
 
     #update clustering source
     algorithm = clustering_selections[0].value
@@ -61,6 +62,18 @@ def update_source(attrname, old, new):
     colors = [cl_spectral[i] for i in y_pred]
     cluster_plot.title.text = algorithm
     cluster_source.data = dict(colors=colors, x=x_cl[:, 0], y=x_cl[:, 1])
+
+
+def update_dimReduction(attrname,old,new):
+
+    algorithm = projection_selections[0].value
+    knn = int(projection_selections[1].value)
+    dimensions = int(projection_selections[2].value)
+    
+    x_pr = dim_reduction.project(data_pr, algorithm, knn, dimensions, labels)
+
+    project_plot.title.text = algorithm
+    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1])
 
     
     
@@ -85,15 +98,24 @@ keys,data = get_data("/home/yannis/Desktop/tRustNN/bokeh_vis/data/model.json")
 gate_selections = get_selections(keys)
 gate_inputs = widgetbox(gate_selections[0],gate_selections[1])
 
-source = get_lstmGate_source("lstm","input_gate",data)
-
 hover = HoverTool()
 hover.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)")]
 hover.mode = 'mouse'
-
 tools = "pan,wheel_zoom,box_zoom,reset,hover"
-gate_plot = figure(title="PCA scatter plot",tools=tools)
-gate_plot.scatter((source.data['x']), (source.data['y']), marker='circle', size=10, line_color="navy", fill_color="navy", alpha=0.5)
+
+#Dimensionality reduction
+labels = None # LOAD GROUND TRUTH OR NET-ASSIGNED LABELS??
+data_pr = data[gate_selections[0].value][gate_selections[1].value]
+proj_source = dim_reduction.dim_reduce(data_pr, 'PCA', n_neighbors=10, n_components=2, labels=labels)
+
+projection_selections = get_projection_selections(dim_reduction.get_dimReduction_algorithms())
+projection_inputs = widgetbox(projection_selections[0],projection_selections[1],projection_selections[2])
+
+for attr in projection_selections:
+    attr.on_change('value',  update_dimReduction)
+
+project_plot = figure(title=projection_selections[0].value,tools=tools)
+project_plot.scatter('x', 'y', marker='circle', size=10, line_color=None, fill_color="navy", alpha=0.5, source=proj_source)
 
 for attr in gate_selections:
     attr.on_change('value', update_source)
@@ -114,5 +136,5 @@ cluster_plot.circle('x', 'y', fill_color='colors', line_color=None, source=clust
 
 
 
-curdoc().add_root(row(gate_inputs, gate_plot, clustering_inputs, cluster_plot, width=400))
+curdoc().add_root(row(gate_inputs, projection_inputs, project_plot, clustering_inputs, cluster_plot, width=400))
 curdoc().title = "tRustNN"
