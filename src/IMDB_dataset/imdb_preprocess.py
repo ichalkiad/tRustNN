@@ -167,8 +167,6 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
 def get_input_json(filenames):
 
-    random.shuffle(filenames)
-
     # Load Google's pre-trained Word2Vec model.
     model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
@@ -179,7 +177,7 @@ def get_input_json(filenames):
 
     X_tokenized  = preprocessor.transform(filenames)
     vectorizer.fit(X_tokenized)
-    X_w2v  = vectorizer.transform(X_tokenized)
+    X_w2v = vectorizer.transform(X_tokenized)
 
     data = collections.OrderedDict()
     for i in range(len(filenames)):
@@ -201,4 +199,4 @@ def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,d
     
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
-    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid
+    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test

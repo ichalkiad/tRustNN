@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames_train_valid, filenames_test
+from IMDB_dataset.textData_cluster import filenames_train_valid
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -119,8 +119,8 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals):
     
     print("Extracting features...")
-    #Train, valid and test sets
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
     print("Training model...")
 
