@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames_train_valid
+from IMDB_dataset.textData_cluster import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -63,8 +63,8 @@ def config():
                                'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
                                'restore':True, 'reuse':False, 'scope':None,'name':"fc"}
     net_arch['output']     = {'optimizer':'adam','loss':'categorical_crossentropy','metric':'default','learning_rate':0.001,
-                               'dtype':tf.float32, 'batch_size':64,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
-                               'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':None,
+                               'dtype':tf.float32, 'batch_size':batch_size,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
+                               'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':batch_size,
                                'name':"output"}
 
     
@@ -120,7 +120,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
     print("Training model...")
 
@@ -149,7 +149,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
     """
     feed = testX
-    input_files = filenames_test
+    input_files = filenames_test_sfd
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
     d = imdb_pre.get_input_json(input_files)
     with open("./bokeh_vis/test_data_input.json", "w") as f:
