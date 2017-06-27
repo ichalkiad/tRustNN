@@ -50,43 +50,20 @@ def update_source(attrname, old, new):
     algorithm = projection_selections[0].value
     knn = int(projection_selections[1].value)
     dimensions = int(projection_selections[2].value)
-    x_pr = dim_reduction.project(data_pr, algorithm, knn, dimensions, labels)
+    x_pr = dim_reduction.project(x, algorithm, knn, dimensions, labels)
     project_plot.title.text = algorithm
-    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1])
 
-    #update clustering source
+    #update clustering 
     algorithm = clustering_selections[0].value
     n_clusters = int(clustering_selections[1].value)
-    x_cl, y_pred = clustering.clustering(x, algorithm, n_clusters)
-    colors = [cl_spectral[i] for i in y_pred]
-    cluster_plot.title.text = algorithm
-    cluster_source.data = dict(colors=colors, x=x_cl[:, 0], y=x_cl[:, 1])
+    cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm,n_clusters)
+
+    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
 
 
-def update_dimReduction(attrname,old,new):
 
-    algorithm = projection_selections[0].value
-    knn = int(projection_selections[1].value)
-    dimensions = int(projection_selections[2].value)
-    
-    x_pr = dim_reduction.project(data_pr, algorithm, knn, dimensions, labels)
-
-    project_plot.title.text = algorithm
-    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1])
 
     
-    
-def update_clustering(attrname,old,new):
-
-    algorithm = clustering_selections[0].value
-    n_clusters = int(clustering_selections[1].value)
-
-    x_cl, y_pred = clustering.clustering(data_cl, algorithm, n_clusters)
-    colors = [cl_spectral[i] for i in y_pred]
-
-    cluster_plot.title.text = algorithm
-    cluster_source.data = dict(colors=colors, x=x_cl[:, 0], y=x_cl[:, 1])
-
 
     
 #Get trained model parameters: weights and gate values
@@ -96,6 +73,9 @@ keys,data = get_data("/home/yannis/Desktop/tRustNN/bokeh_vis/data/model.json")
 #LSTM gates
 gate_selections = get_selections(keys)
 gate_inputs = widgetbox(gate_selections[0],gate_selections[1])
+#Clustering
+clustering_selections = get_clustering_selections(clustering.get_cluster_algorithms())
+clustering_inputs = widgetbox(clustering_selections[0],clustering_selections[1])
 
 hover = HoverTool()
 hover.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)")]
@@ -105,35 +85,27 @@ tools = "pan,wheel_zoom,box_zoom,reset,hover"
 #Dimensionality reduction
 labels = None # LOAD GROUND TRUTH OR NET-ASSIGNED LABELS??
 data_pr = data[gate_selections[0].value][gate_selections[1].value]
-proj_source = dim_reduction.dim_reduce(data_pr, 'PCA', n_neighbors=10, n_components=2, labels=labels)
+X = dim_reduction.project(data_pr, 'PCA', n_neighbors=10, n_components=2, labels=labels)
+cluster_labels, colors, cl_spectral = clustering.apply_cluster(data_pr,'MiniBatchKMeans',2)
+proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=colors))
 
 projection_selections = get_projection_selections(dim_reduction.get_dimReduction_algorithms())
 projection_inputs = widgetbox(projection_selections[0],projection_selections[1],projection_selections[2])
 
-for attr in projection_selections:
-    attr.on_change('value',  update_dimReduction)
-
 project_plot = figure(title=projection_selections[0].value,tools=tools)
-project_plot.scatter('x', 'y', marker='circle', size=10, line_color=None, fill_color="navy", alpha=0.5, source=proj_source)
+project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source)
 
+
+#Layout
 for attr in gate_selections:
+    attr.on_change('value', update_source)
+for attr in projection_selections:
+    attr.on_change('value', update_source)
+for attr in clustering_selections:
     attr.on_change('value', update_source)
 
 
-#Clustering
-data_cl = data[gate_selections[0].value][gate_selections[1].value]
-cluster_source, colors, cl_spectral = clustering.apply_cluster(data_cl,'MiniBatchKMeans',2,projection_selections)
-
-clustering_selections = get_clustering_selections(clustering.get_cluster_algorithms())
-clustering_inputs = widgetbox(clustering_selections[0],clustering_selections[1])
-
-for attr in clustering_selections:
-    attr.on_change('value',  update_clustering)
-
-cluster_plot = figure(title=clustering_selections[0].value,tools=tools)
-cluster_plot.circle('x', 'y', fill_color='colors', size=10, line_color=None, source=cluster_source)
-
 #row(gate_inputs, projection_inputs, project_plot, clustering_inputs, cluster_plot, width=400)
-gp = gridplot([[project_plot, cluster_plot],[row(gate_inputs, projection_inputs),clustering_inputs]])
+gp = gridplot([[project_plot, None],[row(gate_inputs, projection_inputs,clustering_inputs)]])
 curdoc().add_root(gp)
 curdoc().title = "tRustNN"

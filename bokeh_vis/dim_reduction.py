@@ -39,13 +39,6 @@ def project(X, algorithm, n_neighbors,n_components, labels=None):
 
 
 
-def dim_reduce(data, algorithm, n_neighbors, n_components, labels=None):
-
-    data_pr = project(data, algorithm, n_neighbors,n_components, labels)
-    source = ColumnDataSource(data=dict(x=data_pr[:, 0], y=data_pr[:, 1]))
-
-    return source
-
 
 def get_dimReduction_algorithms():
 

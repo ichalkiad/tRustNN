@@ -74,19 +74,14 @@ def clustering(X, algorithm, n_clusters):
 
 
 
-def apply_cluster(data,algorithm,n_clusters,projection_selections):
+def apply_cluster(data,algorithm,n_clusters):
 
     spectral = np.hstack([Spectral6] * 20)
 
-    algorithm_pr = projection_selections[0]
-    knn = projection_selections[1]
-    dimensions = projection_selections[2]
     x_cl, y_pred = clustering(data, algorithm, n_clusters)
     colors = [spectral[i] for i in y_pred]
-    x_pr = dim_reduction.project(x_cl, algorithm_pr, knn, dimensions, None)
-    source = ColumnDataSource(data=dict(x=x_pr[:, 0], y=x_pr[:, 1], colors=colors))
-
-    return source, colors, spectral
+    
+    return y_pred, colors, spectral
 
 
 def get_cluster_algorithms():
