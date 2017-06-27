@@ -19,23 +19,32 @@ def project(X, algorithm, n_neighbors,n_components, labels=None):
     X = np.transpose(X)
     
     if algorithm=="LSA":
-        X = decomposition.TruncatedSVD(n_components).fit_transform(X)
+        svd = decomposition.TruncatedSVD(n_components)
+        svd.fit_transform(X)
+        performance_metric = (" - Total explained variance in data: ",str(np.sum(svd.explained_variance_)))
     elif algorithm=="PCA":
-        X = decomposition.PCA(n_components).fit_transform(X)
+        pca = decomposition.PCA(n_components)
+        pca.fit_transform(X)
+        performance_metric = (" - Total explained variance in data: ",str(np.sum(pca.explained_variance_)))
     elif algorithm=="ISOMAP":
-        X = manifold.Isomap(n_neighbors, n_components).fit_transform(X)
+        isomap = manifold.Isomap(n_neighbors, n_components)
+        isomap.fit_transform(X)
+        performance_metric = None,None
     elif algorithm=="LLE":
-        lle = manifold.LocallyLinearEmbedding(n_neighbors, n_components=2,
-                                      method='standard')
+        lle = manifold.LocallyLinearEmbedding(n_neighbors, n_components=2,method='standard')
         X = lle.fit_transform(X)
+        performance_metric = (" - Reconstruction error: ",str(lle.reconstruction_error_))
     elif algorithm=="MDS":
         mds = manifold.MDS(n_components, n_init=1, max_iter=100)
         X = mds.fit_transform(X)
+        performance_metric = None,None
     elif algorithm=="tSNE":
         tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
         X = tsne.fit_transform(X)
+        performance_metric = (" - Kullback-Leibler divergence: ",str(tsne.kl_divergence_))
 
-    return X
+    
+    return X,performance_metric
 
 
 

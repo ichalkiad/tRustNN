@@ -1,7 +1,7 @@
 attrs:
   Figure:
-    plot_width: 400
-    plot_height: 400
+    plot_width: 500
+    plot_height: 500
     background_fill_color: 'lightgrey'
     background_fill_alpha: 0.2
 
