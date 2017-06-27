@@ -9,13 +9,19 @@ from bokeh.plotting import figure
 from sklearn import (manifold, datasets, decomposition, ensemble,
                      discriminant_analysis, random_projection)
 
-def project(X, algorithm, n_neighbors,n_components, labels=None):
-
-    if algorithm=="PCA":
-        X = decomposition.TruncatedSVD(n_components).fit_transform(X)
+"""
     elif algorithm=="LDA": # Needs labels
         X.flat[::X.shape[1] + 1] += 0.01  # Make X invertible
         X = discriminant_analysis.LinearDiscriminantAnalysis(n_components).fit_transform(X, labels)
+"""
+def project(X, algorithm, n_neighbors,n_components, labels=None):
+
+    X = np.transpose(X)
+    
+    if algorithm=="LSA":
+        X = decomposition.TruncatedSVD(n_components).fit_transform(X)
+    elif algorithm=="PCA":
+        X = decomposition.PCA(n_components).fit_transform(X)
     elif algorithm=="ISOMAP":
         X = manifold.Isomap(n_neighbors, n_components).fit_transform(X)
     elif algorithm=="LLE":
@@ -43,8 +49,11 @@ def dim_reduce(data, algorithm, n_neighbors, n_components, labels=None):
 
 def get_dimReduction_algorithms():
 
-    return ['PCA',
-            'LDA',
+    """
+    'LDA',
+    """
+    return ['LSA',
+            'PCA',
             'ISOMAP',
             'LLE',
             'MDS',

@@ -6,13 +6,17 @@ from bokeh.layouts import widgetbox, row, column
 from bokeh.models import ColumnDataSource, Select, Slider
 from bokeh.plotting import figure
 from bokeh.palettes import Spectral6
-
+import dim_reduction
 from sklearn import cluster
 from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import StandardScaler
 
 
 def clustering(X, algorithm, n_clusters):
+
+    X = np.transpose(X)
+
+    
     # normalize dataset for easier parameter selection
     X = StandardScaler().fit_transform(X)
 
@@ -70,14 +74,17 @@ def clustering(X, algorithm, n_clusters):
 
 
 
-def apply_cluster(data,algorithm,n_clusters):
+def apply_cluster(data,algorithm,n_clusters,projection_selections):
 
     spectral = np.hstack([Spectral6] * 20)
 
+    algorithm_pr = projection_selections[0]
+    knn = projection_selections[1]
+    dimensions = projection_selections[2]
     x_cl, y_pred = clustering(data, algorithm, n_clusters)
     colors = [spectral[i] for i in y_pred]
-
-    source = ColumnDataSource(data=dict(x=x_cl[:, 0], y=x_cl[:, 1], colors=colors))
+    x_pr = dim_reduction.project(x_cl, algorithm_pr, knn, dimensions, None)
+    source = ColumnDataSource(data=dict(x=x_pr[:, 0], y=x_pr[:, 1], colors=colors))
 
     return source, colors, spectral
 

@@ -1,15 +1,14 @@
+from bokeh.models import ColumnDataSource, HoverTool
 from bokeh.plotting import figure, show, output_file
 from bokeh.io import output_notebook, show, curdoc
-from bokeh.models import ColumnDataSource, HoverTool
-from data_format import get_data
-from pprint import pprint
-import numpy as np
+from bokeh.layouts import row, widgetbox, column, gridplot
 from bokeh.models.widgets import Select, Slider
 from sklearn.decomposition import PCA
-import random
-from bokeh.layouts import row, widgetbox, column
-import clustering
+from data_format import get_data
 import dim_reduction
+import numpy as np
+import clustering
+import random
 
 def get_selections(keys):
     
@@ -123,7 +122,7 @@ for attr in gate_selections:
 
 #Clustering
 data_cl = data[gate_selections[0].value][gate_selections[1].value]
-cluster_source, colors, cl_spectral = clustering.apply_cluster(data_cl,'MiniBatchKMeans',2)
+cluster_source, colors, cl_spectral = clustering.apply_cluster(data_cl,'MiniBatchKMeans',2,projection_selections)
 
 clustering_selections = get_clustering_selections(clustering.get_cluster_algorithms())
 clustering_inputs = widgetbox(clustering_selections[0],clustering_selections[1])
@@ -132,9 +131,9 @@ for attr in clustering_selections:
     attr.on_change('value',  update_clustering)
 
 cluster_plot = figure(title=clustering_selections[0].value,tools=tools)
-cluster_plot.circle('x', 'y', fill_color='colors', line_color=None, source=cluster_source)
+cluster_plot.circle('x', 'y', fill_color='colors', size=10, line_color=None, source=cluster_source)
 
-
-
-curdoc().add_root(row(gate_inputs, projection_inputs, project_plot, clustering_inputs, cluster_plot, width=400))
+#row(gate_inputs, projection_inputs, project_plot, clustering_inputs, cluster_plot, width=400)
+gp = gridplot([[project_plot, cluster_plot],[row(gate_inputs, projection_inputs),clustering_inputs]])
+curdoc().add_root(gp)
 curdoc().title = "tRustNN"
