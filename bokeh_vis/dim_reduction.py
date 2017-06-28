@@ -5,7 +5,6 @@ from bokeh.io import curdoc
 from bokeh.layouts import widgetbox, row, column
 from bokeh.models import ColumnDataSource, Select, Slider
 from bokeh.plotting import figure
-
 from sklearn import (manifold, datasets, decomposition, ensemble,
                      discriminant_analysis, random_projection)
 
@@ -16,6 +15,7 @@ from sklearn import (manifold, datasets, decomposition, ensemble,
 """
 def project(X, algorithm, n_neighbors,n_components, labels=None):
 
+    
     X = np.transpose(X)
     
     if algorithm=="LSA":
@@ -42,7 +42,6 @@ def project(X, algorithm, n_neighbors,n_components, labels=None):
         tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
         X = tsne.fit_transform(X)
         performance_metric = (" - Kullback-Leibler divergence: ",str(tsne.kl_divergence_))
-
     
     return X,performance_metric
 

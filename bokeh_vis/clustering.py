@@ -15,7 +15,6 @@ from sklearn.preprocessing import StandardScaler
 def clustering(X, algorithm, n_clusters):
 
     X = np.transpose(X)
-
     
     # normalize dataset for easier parameter selection
     X = StandardScaler().fit_transform(X)
@@ -69,7 +68,7 @@ def clustering(X, algorithm, n_clusters):
             y_pred = model.labels_.astype(np.int)
     else:
             y_pred = model.predict(X)
-
+    
     return X, y_pred
 
 
@@ -80,7 +79,7 @@ def apply_cluster(data,algorithm,n_clusters):
 
     x_cl, y_pred = clustering(data, algorithm, n_clusters)
     colors = [spectral[i] for i in y_pred]
-    
+
     return y_pred, colors, spectral
 
 
