@@ -29,7 +29,7 @@ def project(X, algorithm, n_neighbors,n_components, labels=None):
     elif algorithm=="ISOMAP":
         isomap = manifold.Isomap(n_neighbors, n_components)
         isomap.fit_transform(X)
-        performance_metric = None,None
+        performance_metric = (None,None)
     elif algorithm=="LLE":
         lle = manifold.LocallyLinearEmbedding(n_neighbors, n_components=2,method='standard')
         X = lle.fit_transform(X)
@@ -37,7 +37,7 @@ def project(X, algorithm, n_neighbors,n_components, labels=None):
     elif algorithm=="MDS":
         mds = manifold.MDS(n_components, n_init=1, max_iter=100)
         X = mds.fit_transform(X)
-        performance_metric = None,None
+        performance_metric = (None,None)
     elif algorithm=="tSNE":
         tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
         X = tsne.fit_transform(X)

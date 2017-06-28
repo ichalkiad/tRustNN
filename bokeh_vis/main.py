@@ -84,7 +84,10 @@ def update_source(attrname, old, new):
     cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl,n_clusters)
 
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
-    project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
+    if performance_metric!=(None,None):
+        project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
+    else:
+        project_plot.title.text = algorithm
 
     #update raw input 
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
@@ -129,6 +132,8 @@ proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=colors))
 
 project_plot = figure(title=projection_selections[0].value + performance_metric[0] + performance_metric[1],tools=tools)
 project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
+project_plot.xaxis.axis_label = 'Dim 1'
+project_plot.yaxis.axis_label = 'Dim 2'
 
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
@@ -157,6 +162,6 @@ rawInput_selections.on_change('value', update_source)
 
 
 #row(gate_inputs, projection_inputs, project_plot, clustering_inputs, cluster_plot, width=400)
-gp = gridplot([[project_plot, rawInput_plot],[row(gate_inputs, projection_inputs,clustering_inputs,rawInput_inputs)]])
+gp = gridplot([[project_plot, rawInput_plot],[row(gate_inputs, projection_inputs,clustering_inputs, rawInput_inputs)]], responsive=True)
 curdoc().add_root(gp)
 curdoc().title = "tRustNN"
