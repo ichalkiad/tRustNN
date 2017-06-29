@@ -21,9 +21,12 @@ from sacred import Experiment
 import tensorflow as tf
 import collections
 import tflearn
+import extend_recurrent
 import json
 import sys
+import lrp
 import os
+import _pickle
 
 ex = Experiment('IMDBMovieReview-LSTM')
 
@@ -56,7 +59,7 @@ def config():
     net_arch = collections.OrderedDict()
     net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
                                'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
-                               'return_seq':False, 'return_state':True, 'initial_state':None,
+                               'return_seq':True, 'return_state':True, 'initial_state':None,
                                'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
                                'scope':None,'name':"lstm"}
     net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
@@ -80,13 +83,13 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
         key = net_arch_layers[k]
         value = net_arch[key]
         if 'lstm' in key:
-            output, state = tflearn.lstm(prev_incoming,n_units=value['n_units'], activation=value['activation'],
+            output, state = extend_recurrent.lstm(prev_incoming,n_units=value['n_units'], activation=value['activation'],
                                          inner_activation=value['inner_activation'],dropout=value['dropout'], bias=value['bias'],
                                          weights_init=value['weights_init'],forget_bias=value['forget_bias'],return_seq=value['return_seq'],
                                          return_state=value['return_state'],initial_state=value['initial_state'],dynamic=value['dynamic'],
                                          trainable=value['trainable'],restore=value['restore'], reuse=value['reuse'],scope=value['scope'],
                                          name=value['name'])
-            n = key+"_output" 
+            n = key+"_output"
             layer_outputs[n] = output
             n = key+"_cell_state"
             layer_outputs[n] = state
@@ -120,16 +123,21 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    #trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+
+    with open('trainValid.pickle','rb') as handle:
+        (trainX,validX,trainY,validY,filenames_train,filenames_valid) = _pickle.load(handle)
+    with open('test_data.pickle','rb') as handle:
+        (testX,testY) = _pickle.load(handle)
 
     print("Training model...")
 
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
-    print("Evaluating trained model on test set...")
-    score = model.evaluate(testX,testY)
-    print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
+    #print("Evaluating trained model on test set...")
+    #score = model.evaluate(testX,testY)
+    #print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
    
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
@@ -149,13 +157,16 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
     """
     feed = testX
+    
+    """
     input_files = filenames_test_sfd
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
     d = imdb_pre.get_input_json(input_files)
     with open("./bokeh_vis/test_data_input.json", "w") as f:
         json.dump(d, f)
-     
-    
+    """
+    print(lrp.get_intermediate_outputs(model,layer_outputs,feed))
+    sys.exit(0)
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
