@@ -18,7 +18,7 @@ from tflearn import activations
 from tflearn import initializations
 from tflearn import variables as va
 from tflearn.layers.normalization import batch_normalization
-from tflearn.layers.recurrent import DropoutWrapper as DropoutWrapper, BasicLSTMCell as BasicLSTMCell
+from tflearn.layers.recurrent import DropoutWrapper as DropoutWrapper, BasicLSTMCell as BasicLSTMCell, _linear as _linear,  retrieve_seq_length_op as retrieve_seq_length_op, advanced_indexing_op as advanced_indexing_op
 
 _concat = core_rnn_cell._concat
 _like_rnncell = core_rnn_cell._like_rnncell
@@ -271,8 +271,6 @@ def _rnn_template(incoming, cell, dropout=None, return_seq=False,
     return (o, s) if return_state else o
 
 
-
-
 def lstm(incoming, n_units, activation='tanh', inner_activation='sigmoid',
          dropout=None, bias=True, weights_init=None, forget_bias=1.0,
          return_seq=False, return_state=False, initial_state=None,
@@ -343,86 +341,6 @@ def lstm(incoming, n_units, activation='tanh', inner_activation='sigmoid',
                       return_seq=return_seq, return_state=return_state,
                       initial_state=initial_state, dynamic=dynamic,
                       scope=scope, name=name)
-    
+  
     return x
 
-
-
-
-
-# --------------------
-#   TensorFlow Utils
-# --------------------
-
-def _linear(args, output_size, bias, bias_start=0.0, weights_init=None,
-            trainable=True, restore=True, reuse=False, scope=None):
-    """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
-
-    Arguments:
-        args: a 2D Tensor or a list of 2D, batch x n, Tensors.
-        output_size: int, second dimension of W[i].
-        bias: boolean, whether to add a bias term or not.
-        bias_start: starting value to initialize the bias; 0 by default.
-        scope: VariableScope for the created subgraph; defaults to "Linear".
-
-    Returns:
-        A 2D Tensor with shape [batch x output_size] equal to
-        sum_i(args[i] * W[i]), where W[i]s are newly created matrices.
-
-    Raises:
-        ValueError: if some of the arguments has unspecified or wrong shape.
-    """
-    if args is None or (is_sequence(args) and not args):
-        raise ValueError("`args` must be specified")
-    if not is_sequence(args):
-        args = [args]
-
-    # Calculate the total size of arguments on dimension 1.
-    total_arg_size = 0
-    shapes = [a.get_shape().as_list() for a in args]
-    for shape in shapes:
-        if len(shape) != 2:
-            raise ValueError(
-                "Linear is expecting 2D arguments: %s" % str(shapes))
-        if not shape[1]:
-            raise ValueError(
-                "Linear expects shape[1] of arguments: %s" % str(shapes))
-        else:
-            total_arg_size += shape[1]
-
-    # Now the computation.
-    with tf.variable_scope(scope or "Linear", reuse=reuse):
-        matrix = va.variable("Matrix", [total_arg_size, output_size],
-                             initializer=weights_init, trainable=trainable,
-                             restore=restore)
-        if len(args) == 1:
-            res = tf.matmul(args[0], matrix)
-        else:
-            res = tf.matmul(array_ops.concat(args, 1), matrix)
-        if not bias:
-            return res
-        bias_term = va.variable(
-            "Bias", [output_size],
-            initializer=tf.constant_initializer(bias_start),
-            trainable=trainable, restore=restore)
-    return res + bias_term
-
-
-def retrieve_seq_length_op(data):
-    """ An op to compute the length of a sequence. 0 are masked. """
-    with tf.name_scope('GetLength'):
-        used = tf.sign(tf.reduce_max(tf.abs(data), reduction_indices=2))
-        length = tf.reduce_sum(used, reduction_indices=1)
-        length = tf.cast(length, tf.int32)
-    return length
-
-
-def advanced_indexing_op(input, index):
-    """ Advanced Indexing for Sequences. """
-    batch_size = tf.shape(input)[0]
-    max_length = int(input.get_shape()[1])
-    dim_size = int(input.get_shape()[2])
-    index = tf.range(0, batch_size) * max_length + (index - 1)
-    flat = tf.reshape(input, [-1, dim_size])
-    relevant = tf.gather(flat, index)
-    return relevant
