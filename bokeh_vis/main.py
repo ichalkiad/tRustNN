@@ -4,11 +4,18 @@ from bokeh.io import output_notebook, show, curdoc
 from bokeh.layouts import row, widgetbox, column, gridplot
 from bokeh.models.widgets import Select, Slider
 from sklearn.decomposition import PCA
-from data_format import get_data
 import dim_reduction
 import numpy as np
 import clustering
 import random
+import sys
+import os
+
+src_path = os.path.abspath("./src/")
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+import data_format
+
 
 def get_selections(keys):
     
@@ -100,9 +107,9 @@ def update_source(attrname, old, new):
 
     
 #Get trained model parameters: weights and gate values
-keys,data = get_data("./bokeh_vis/data/model.json")
+keys,data = data_format.get_data("./bokeh_vis/data/model.json")
 #Get raw input
-keys_raw,data_raw = get_data("./bokeh_vis/data/test_data_input.json")
+keys_raw,data_raw = data_format.get_data("./bokeh_vis/data/test_data_input.json")
 
 
 #LSTM gates
