@@ -31,14 +31,13 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
             if "cell" in k:
                 if isinstance(layer_outputs[k],list):
                     currentStepOutput = []
-                    for history_state in layer_outputs[k][0]:
-                        currentStepOutput.append(history_state.eval(feed_dict={'InputData/X:0':feed}))
+                    for history_state in layer_outputs[k]:
+                        currentStepOutput.append(history_state[0].eval(feed_dict={'InputData/X:0':feed}))
                     totalDataOutput_state = np.stack(currentStepOutput,axis=0)
                     currentStepOutput = []
-                    for history_hidden in layer_outputs[k][1]:
-                        currentStepOutput.append(history_hidden.eval(feed_dict={'InputData/X:0':feed}))
+                    for history_hidden in layer_outputs[k]:
+                        currentStepOutput.append(history_hidden[1].eval(feed_dict={'InputData/X:0':feed}))
                     totalDataOutput_hidden = np.stack(currentStepOutput,axis=0)
-
                     h = collections.OrderedDict()
                     for i in range(len(input_files)):
                         h[input_files[i]] = totalDataOutput_state[:,i,:].tolist()
@@ -47,7 +46,7 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                     for i in range(len(input_files)):
                         h[input_files[i]] = totalDataOutput_hidden[:,i,:].tolist()
                     lstm_hidden[k] = h
-                else:    
+                else:
                     lstm_states[k] = {"cell": layer_outputs[k][0].eval(feed_dict={'InputData/X:0':feed}).tolist()}
                     lstm_hidden[k] = {"hidden":layer_outputs[k][1].eval(feed_dict={'InputData/X:0':feed}).tolist()}
                     
