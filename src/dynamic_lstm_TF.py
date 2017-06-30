@@ -17,11 +17,13 @@ from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from sacred.observers import MongoObserver
+from scipy.special import expit
 from sacred import Experiment
 import tensorflow as tf
 import collections
 import tflearn
 import extend_recurrent
+import numpy as np
 import json
 import sys
 import lrp
@@ -125,27 +127,31 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
     #trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
+    
     with open('trainValid.pickle','rb') as handle:
         (trainX,validX,trainY,validY,filenames_train,filenames_valid) = _pickle.load(handle)
     with open('test_data.pickle','rb') as handle:
         (testX,testY) = _pickle.load(handle)
-
+    
+    
     print("Training model...")
-
+    
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
-    #print("Evaluating trained model on test set...")
-    #score = model.evaluate(testX,testY)
-    #print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
-   
+    """
+    print("Evaluating trained model on test set...")
+    score = model.evaluate(testX,testY)
+    print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
+    
+    
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-
+    
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
-
+    """
     #Get model's internals for 'feed' input
     """
     feed = trainX
@@ -157,18 +163,24 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
     """
     feed = testX
-    
     """
     input_files = filenames_test_sfd
-    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
-    d = imdb_pre.get_input_json(input_files)
-    with open("./bokeh_vis/test_data_input.json", "w") as f:
-        json.dump(d, f)
     """
-    print(lrp.get_intermediate_outputs(model,layer_outputs,feed))
-    sys.exit(0)
+    input_files = ['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']
+    """
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test2_")
+    """
+    lrp.lrp_full(model,input_files,net_arch,net_arch_layers,'./bokeh_vis/data/test_data_input.json','./sacred_models/runID/test2_model_internals_fc.json','./sacred_models/runID/test2_model_internals_lstm_hidden.json','./sacred_models/runID/test2_model_internals_lstm_states.json',eps=0.001,delta=1.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
+
+
+    """
+    d = imdb_pre.get_input_json(input_files)
+    with open("./bokeh_vis/data/test_data_input.json", "w") as f:
+        json.dump(d, f)
+
+
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
     print("Saved model...now exiting...")
- 
+    """
