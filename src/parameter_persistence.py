@@ -6,10 +6,11 @@ import json
 
 def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",save_dir="/tmp/"):
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
+# input_files has to be a list even if it is a single file
     
     lstm_outputs = collections.OrderedDict()
     lstm_states  = collections.OrderedDict()
-    lstm_hidden  = collections.OrderedDict()  ## REDUNDANT? SAME AS OUTPUTS?
+    lstm_hidden  = collections.OrderedDict()  ## REDUNDANT? SAME AS OUTPUTS? yes, outputs includes the unncessary zeros at the end
     fc_outputs   = collections.OrderedDict()
     
     with model.session.as_default():
@@ -22,12 +23,10 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                     for history in layer_outputs[k]:
                         currentStepOutput.append(history.eval(feed_dict={'InputData/X:0':feed}))
                     totalDataOutput = np.stack(currentStepOutput,axis=0)
-                    h = collections.OrderedDict()
                     for i in range(len(input_files)):
-                        h[input_files[i]] = totalDataOutput[:,i,:].tolist()
-                    lstm_outputs[k] = h
+                        lstm_outputs[input_files[i]] = totalDataOutput[:,i,:].tolist()
                 else:
-                    lstm_outputs[k] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
+                    lstm_outputs[input_files[0]] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
             if "cell" in k:
                 if isinstance(layer_outputs[k],list):
                     currentStepOutput = []
@@ -38,26 +37,20 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                     for history_hidden in layer_outputs[k]:
                         currentStepOutput.append(history_hidden[1].eval(feed_dict={'InputData/X:0':feed}))
                     totalDataOutput_hidden = np.stack(currentStepOutput,axis=0)
-                    h = collections.OrderedDict()
                     for i in range(len(input_files)):
-                        h[input_files[i]] = totalDataOutput_state[:,i,:].tolist()
-                    lstm_states[k] = h
-                    h = collections.OrderedDict()
+                        lstm_states[input_files[i]] = totalDataOutput_state[:,i,:].tolist()
                     for i in range(len(input_files)):
-                        h[input_files[i]] = totalDataOutput_hidden[:,i,:].tolist()
-                    lstm_hidden[k] = h
+                        lstm_hidden[input_files[i]] = totalDataOutput_hidden[:,i,:].tolist()
                 else:
-                    lstm_states[k] = {"cell": layer_outputs[k][0].eval(feed_dict={'InputData/X:0':feed}).tolist()}
-                    lstm_hidden[k] = {"hidden":layer_outputs[k][1].eval(feed_dict={'InputData/X:0':feed}).tolist()}
+                    lstm_states[input_files[0]] = layer_outputs[k][0].eval(feed_dict={'InputData/X:0':feed}).tolist()
+                    lstm_hidden[input_files[0]] = layer_outputs[k][1].eval(feed_dict={'InputData/X:0':feed}).tolist()
                     
         if data == "all":
            keys = [k for k in list(layer_outputs.keys()) if "fc" in k]
            for k in keys:
                data_out = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed})
-               h = collections.OrderedDict()
                for i in range(len(input_files)):
-                   h[input_files[i]] = data_out[i,:].tolist()
-               fc_outputs[k] = h
+                   fc_outputs[input_files[i]] = data_out[i,:].tolist()
                
             
     with open(save_dir+"model_internals_fc.json", 'w') as f:
