@@ -1,202 +1,155 @@
 from scipy.special import expit
 import tensorflow as tf
 import numpy as np
+from numpy import newaxis as na
+import data_format
 import collections
 import tflearn
+from lrp_linear import lrp_linear as lrp_linear
 import json
+import sys
 
-
-def get_gate_out(W,b,in_concat):
+def get_gate(W,b,in_concat):
 # in_concat is concatenation(current_input, input_prev_timestep)
 # b should correspond to specific gate bias
      
      return np.dot(W.transpose(),in_concat) + b
 
 
+def get_gates_out_t(in_concat,b,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2):
+
+     i_t = lstm_actv1(get_gate(i_arr,b[0:d],in_concat))
+     g_t = lstm_actv2(get_gate(g_arr,b[d:2*d],in_concat))
+     f_t = lstm_actv1(get_gate(f_arr,b[2*d:3*d],in_concat))
+     o_t = lstm_actv1(get_gate(o_arr,b[3*d:4*d],in_concat))
+
+     return i_t,g_t,f_t
 
 
-def get_cell_state_t(in_concat,b_tot,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2,c_prev):
 
+def lrp_fullyConnected(model,fc_name,last_lstm_output,fc_out,lrp_mask,d,T,classes,eps,delta,debug):
+#last_lstm_output : the lstm layer that connects to the fully connected
      
-     i_t = lstm_actv1(get_gate_out(i_arr,b[0:d],in_concat))
-     g_t = lstm_actv2(get_gate_out(g_arr,b[d:2*d],in_concat))
-     f_t = lstm_actv1(get_gate_out(f_arr,b[2*d:3*d],in_concat))
-     o_t = lstm_actv1(get_gate_out(o_arr,b[3*d:4*d],in_concat))
-
-     c_t = f_t*c_prev + i_t*g_t
-
-     return c_t,i_t,g_t,f_t
-
-
-
-
-def get_intermediate_outputs(model,layer_outputs,feed):
-
-    internals = collections.OrderedDict()
-    with model.session.as_default():
-            
-        keys = [k for k in list(layer_outputs.keys()) if "lstm" in k]
-        for k in keys:
-            if "output" in k:
-                if isinstance(layer_outputs[k],list):
-                    currentStepOutput = []
-                    for history in layer_outputs[k]:
-                        currentStepOutput.append(history.eval(feed_dict={'InputData/X:0':feed}))
-                    totalOut = np.array(currentStepOutput)
-                    sh = totalOut.shape
-                    internals[k] = totalOut.reshape((sh[0],sh[2])) 
-
-            if "cell" in k:
-                internals[k] = layer_outputs[k][0].eval(feed_dict={'InputData/X:0':feed})
-
-    return internals
-
-
-
-
-
-def lrp_rule(zi,zi_size,zj,zj_size,W,b,eps,delta,Rout,N):
-
-     _lrp = []
-     for i in range(zi_size):
-         lrp_zij = 0
-         for j in range(zj_size):
-             lrp_zij = lrp_zij + (zi[i]*W[i][j] + (eps*np.sign(zj[j]) + delta*b[j])/N)*Rout[j]/(zj[j] + eps*np.sign(zj[j]))
-         _lrp.append(lrp_zij)
-     lrp_ = np.array(_lrp)
-
-     return lrp_
-     
-
-
-
-
-def get_fwd_pass_single_input(model,layer_outputs,single_input_data):
-
-    # single_input_data : array with the embeddings of 1 review
-     
-    prediction_score = model.predict(single_input_data)
-    predicted_label  = model.predict_label(single_input_data)
-    T = shape(single_input_data)
-    data = get_intermediate_outputs(model,layer_outputs,single_input_data)
-    
-    return prediction_score,prediction_label,T,data,single_input_data
-
-
-
-
-
-def lrp_fullyConnected(fc_name,zi,zi_size,zj,zj_size,eps,delta,Rout,N):
-
         layer = tflearn.variables.get_layer_variables_by_name(fc_name)
-        W = model.get_weights(layer[0])
-        b = model.get_weights(layer[1])
-        lrp_fc = lrp_rule(zi,zi_size,zj,zj_size,W,b,eps,delta,Rout,N)
+        W_fc = model.get_weights(layer[0])
+        b_fc = model.get_weights(layer[1])
+        zi = last_lstm_output[T[0]-1,:]
+        zj = fc_out
+        W = W_fc
+        b = np.zeros((classes)) 
+        Rout = np.multiply(fc_out,lrp_mask)
+        N = 2*d
+        lrp_fc = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
 
         return lrp_fc
 
 
-
-   
-
-"""
-
-
-fwdPass_data = get_fwd_pass_single_input(model,layer_outputs,single_input_data)  #####call before lrp_single_out  !!!!!!!!!
-def lrp_single_input(model,layer_outputs,layer_names,layer_sizes,fwdPass_data,input_file,eps,delta,lstm_actv1=expit,lstm_actv2=np.tanh):
-
-#layer_sizes: dict with "layer":size of weight matrix, eg (30,2)
-
-    with model.session.as_default():
-
-        T = fwdPass_data[2]
-        lrp_out = np.zeros((2)) #2 classes
-        lrp_out[fwdPass_data[1]] = fwdPass_data[0]
-
-        #LRP through fc layer
-        fc_name = "fc"
-        zi = fwdPass_data[?]  #lstm layer before fc layer  
-        zj = fwdPass_data[l]
-        zi_size, zj_size = layer_sizes[l] ????? ### Re-examine
-        N = ????? ### Re-examine
-        lrp_fc = lrp_fullyConnected(fc_name,zi,zi_size,zj,zj_size,eps,delta,Rout,N)
-
-
+def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug):
         
-        #LRP through lstm layer
-        l = "lstm"
-        lstm_outputs = fwdPass_data[3]["lstm_output"] 
-        lstm_final_cell_state = fwdPass_data[3]["lstm_cell_state"]
-        feed = fwdPass_data[-1]
-        
-        layer = tflearn.variables.get_layer_variables_by_name(l)
+        layer = tflearn.variables.get_layer_variables_by_name(layer_name)
         input, new_input, forget, output = tf.split(layer[0], num_or_size_splits=4, axis=1)
         i_arr = model.session.run(input)
         g_arr = model.session.run(new_input) 
         f_arr = model.session.run(forget)
         o_arr = model.session.run(output)
         b_tot = model.get_weights(layer[1])
-
-        
-        zi = fwdPass_data[?]  #layer before current lstm layer  
-        zj = fwdPass_data[l]  # OUTPUT of current lstm layer
-
-        #hidden output size
-        d = i_arr.shape[0] - T[1]
-   
-        zi_size, zj_size = layer_sizes[l]
-        lstm_lrp_x = np.zeros(fwdPass_data)
-        lstm_lrp_h = np.zeros((T[0]+1, d))
-        lstm_lrp_c = np.zeros((T[0]+1, d))
+ 
+        lstm_lrp_x = np.zeros(feed.shape)
+        lstm_lrp_h = np.zeros((T[0], d))
+        lstm_lrp_c = np.zeros((T[0], d))
         lstm_lrp_g = np.zeros((T[0], d))
-
         
-        #verify that initial cell/hidden state is zero if not set by user
-        lstm_lrp_h[T[0]-1] = np.sum(lrp_fc)
-        c_next = lstm_final_cell_state
+        lstm_lrp_h[T[0]-1,:] = lrp_fc
         
         for t in reversed(range(T[0])):
 
-             lstm_lrp_c[t] += lstm_lrp_h[t]
+             lstm_lrp_c[t,:] += lstm_lrp_h[t,:]
 
-             x_t = feed[t]
-             h_t = lstm_outputs[t-1]
+             x_t = feed[t,:]
+             h_t = lstm_hidden[t-1,:]
              in_concat = np.concatenate((x_t,h_t),axis=0)
-             c_t,i_t,g_t,f_t,c_prev = get_cell_state_t(in_concat,b_tot,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2,c_next) 
-             c_next = c_t
-             zi = 
-             zi_size =
-             zj = 
-             zj_size = 
+             i_t,g_t,f_t = get_gates_out_t(in_concat,b_tot,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2)
+             zi = f_t*lstm_cell[t-1,:]
+             zj = lstm_cell[t,:]
              W = np.identity(d)
              b = np.zeros((d))
-             Rout = 
+             Rout = lstm_lrp_c[t,:]
              N = 2*d
-             lstm_lrp_c[t-1] = lrp_rule()
+             lstm_lrp_c[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
 
-             zi =
-             zi_size = 
-             lstm_lrp_g[t-1] = lrp_rule
+             zi = np.multiply(i_t,g_t)
+             lstm_lrp_g[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
 
-             zi = 
-             zi_size =
-             zj = 
-             zj_size = 
-             W = 
-             b =
-             Rout = lstm_lrp_g
+             zi = feed[t,:]
+             zj = g_t
+             W = g_arr[0:T[1],:]
+             b = b_tot[d:2*d]
+             Rout = lstm_lrp_g[t,:]
              N = d + T[1]
-             lstm_lrp_x = lrp_rule()
+             lstm_lrp_x[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
              
-             zi =
-             zi_size =
-             W =
-             lstm_lrp_h = lrp_rule()
+             zi = lstm_hidden[t-1,:]
+             W = g_arr[T[1]:,:]
+             lstm_lrp_h[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
 
+     
+        return lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
+
+   
+def load_intermediate_outputs(input_filename,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None):
+#layer_name is currently not needed - for networks with more layers we will need it, as the json structure will change
+     
+     keys_hidden,data_hidden = data_format.get_data(lstm_hidden_json)
+     keys_cell,data_cell = data_format.get_data(lstm_cell_json)
+     keys_fc,data_fc = data_format.get_data(fc_json)
+
+     lstm_hidden = data_hidden[input_filename]
+     lstm_cell   = data_cell[input_filename]
+     fc_out      = data_fc[input_filename]
+     
+     d = lstm_cell.shape[1]
+     
+     return fc_out,lstm_hidden,lstm_cell,d
+
+
+
+def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,target_class,T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
+
+        
+    with model.session.as_default():
+
+        lrp_mask = np.zeros((classes))
+        lrp_mask[target_class] = 1.0
+
+        fc_out,lstm_hidden,lstm_cell,d = load_intermediate_outputs(input_filename,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None)
+        
+        #LRP through fc layer
+        fc_name = "fc"
+        lrp_fc = lrp_fullyConnected(model,fc_name,lstm_hidden,fc_out,lrp_mask,d,T,classes,eps,delta,debug)
+
+        #LRP through lstm layer
+        lstm_name = "lstm"        
+        feed = single_input_data
+        lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
+
+
+    return lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
 
 
         
+def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
 
+    keys_test,data_test = data_format.get_data(test_data_json)
+    for k in keys_test:
+         kkeys = data_test[k].keys()
+         kdata = np.array(list(data_test[k].values()))
+         T = kdata.shape
+        
+         lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
 
-
-"""
+         print(lrp_fc)
+         print(lstm_lrp_x)
+         print(lstm_lrp_h)
+         print(lstm_lrp_g)
+         print(lstm_lrp_c)
+         

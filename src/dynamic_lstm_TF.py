@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames_train_valid,filenames_test
+from IMDB_dataset.textData import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -60,17 +60,17 @@ def config():
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
     net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
-                               'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
-                               'return_seq':True, 'return_state':True, 'initial_state':None,
-                               'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
-                               'scope':None,'name':"lstm"}
+                              'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
+                              'return_seq':True, 'return_state':True, 'initial_state':None,
+                              'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
+                              'scope':None,'name':"lstm"}
     net_arch['fc']         = {'n_units':2, 'activation':'softmax', 'bias':True,'weights_init':'truncated_normal',
-                               'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
-                               'restore':True, 'reuse':False, 'scope':None,'name':"fc"}
+                              'bias_init':'zeros', 'regularizer':None, 'weight_decay':0.001, 'trainable':True,
+                              'restore':True, 'reuse':False, 'scope':None,'name':"fc"}
     net_arch['output']     = {'optimizer':'adam','loss':'categorical_crossentropy','metric':'default','learning_rate':0.001,
-                               'dtype':tf.float32, 'batch_size':batch_size,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
-                               'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,'validation_batch_size':batch_size,
-                               'name':"output"}
+                              'dtype':tf.float32, 'batch_size':batch_size,'shuffle_batches':True,'to_one_hot':False,'n_classes':None,
+                              'trainable_vars':None,'restore':True,'op_name':None,'validation_monitors':None,
+                              'validation_batch_size':batch_size,'name':"output"}
 
     
     
@@ -128,10 +128,8 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     #trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
     
-    with open('trainValid.pickle','rb') as handle:
-        (trainX,validX,trainY,validY,filenames_train,filenames_valid) = _pickle.load(handle)
-    with open('test_data.pickle','rb') as handle:
-        (testX,testY) = _pickle.load(handle)
+    with open('trainValidtest.pickle','rb') as handle:
+        (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = _pickle.load(handle)
     
     
     print("Training model...")
@@ -163,14 +161,11 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
     """
     feed = testX
-    """
     input_files = filenames_test_sfd
     """
-    input_files = ['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
     """
-    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test2_")
-    """
-    lrp.lrp_full(model,input_files,net_arch,net_arch_layers,'./bokeh_vis/data/test_data_input.json','./sacred_models/runID/test2_model_internals_fc.json','./sacred_models/runID/test2_model_internals_lstm_hidden.json','./sacred_models/runID/test2_model_internals_lstm_states.json',eps=0.001,delta=1.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
+    lrp.lrp_full(model,input_files,net_arch,net_arch_layers,'./bokeh_vis/data/test_data_input.json','./sacred_models/runID/test_model_internals_fc.json','./sacred_models/runID/test_model_internals_lstm_hidden.json','./sacred_models/runID/test_model_internals_lstm_states.json',eps=0.001,delta=1.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
 
 
     """
