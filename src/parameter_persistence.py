@@ -17,6 +17,7 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
             
         keys = [k for k in list(layer_outputs.keys()) if "lstm" in k]
         for k in keys:
+            """
             if "output" in k:
                 if isinstance(layer_outputs[k],list):
                     currentStepOutput = []
@@ -27,6 +28,7 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                         lstm_outputs[input_files[i]] = totalDataOutput[:,i,:].tolist()
                 else:
                     lstm_outputs[input_files[0]] = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed}).tolist()
+            """
             if "cell" in k:
                 if isinstance(layer_outputs[k],list):
                     currentStepOutput = []
