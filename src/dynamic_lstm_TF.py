@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData import filenames_train_valid,filenames_test
+from IMDB_dataset.textData_cluster import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -29,6 +29,7 @@ import sys
 import lrp
 import os
 import _pickle
+import heatmap
 
 ex = Experiment('IMDBMovieReview-LSTM')
 
@@ -125,19 +126,19 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    #trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
-    
+    """
     with open('trainValidtest.pickle','rb') as handle:
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = _pickle.load(handle)
-    
+    """
     
     print("Training model...")
     
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
-    """
+    
     print("Evaluating trained model on test set...")
     score = model.evaluate(testX,testY)
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
@@ -149,7 +150,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
-    """
+    
     #Get model's internals for 'feed' input
     """
     feed = trainX
@@ -162,20 +163,25 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     """
     feed = testX
     input_files = filenames_test_sfd
-    """
+    
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
-    """
-    lrp.lrp_full(model,input_files,net_arch,net_arch_layers,'./bokeh_vis/data/test_data_input.json','./sacred_models/runID/test_model_internals_fc.json','./sacred_models/runID/test_model_internals_lstm_hidden.json','./sacred_models/runID/test_model_internals_lstm_states.json',eps=0.001,delta=1.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
 
-
-    """
     d = imdb_pre.get_input_json(input_files)
     with open("./bokeh_vis/data/test_data_input.json", "w") as f:
         json.dump(d, f)
 
+    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,'./bokeh_vis/data/test_data_input.json',save_dir+"test_model_internals_fc.json",save_dir+"test_model_internals_lstm_hidden.json",save_dir+"test_model_internals_lstm_states.json",eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
 
+    predicted_tgs = model.predict_label(feed)
+
+    with open(save_dir+"LRP.pickle","wb") as handle:
+        _pickle.dump((LRP,predicted_tags),handle)
+    
+    #print(predicted_tgs)
+    #print(heatmap.html_heatmap(LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['words'], LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['scores'] ))
+    
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
     print("Saved model...now exiting...")
-    """
+

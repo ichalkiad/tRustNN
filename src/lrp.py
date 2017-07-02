@@ -37,9 +37,9 @@ def lrp_fullyConnected(model,fc_name,last_lstm_output,fc_out,lrp_mask,d,T,classe
         zj = fc_out
         W = W_fc
         b = np.zeros((classes)) 
-        Rout = np.multiply(fc_out,lrp_mask)
+        Rout = fc_out*lrp_mask
         N = 2*d
-        lrp_fc = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
+        lrp_fc = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
 
         return lrp_fc
 
@@ -55,8 +55,8 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
         b_tot = model.get_weights(layer[1])
  
         lstm_lrp_x = np.zeros(feed.shape)
-        lstm_lrp_h = np.zeros((T[0], d))
-        lstm_lrp_c = np.zeros((T[0], d))
+        lstm_lrp_h = np.zeros((T[0]+1, d))
+        lstm_lrp_c = np.zeros((T[0]+1, d))
         lstm_lrp_g = np.zeros((T[0], d))
         
         lstm_lrp_h[T[0]-1,:] = lrp_fc
@@ -75,10 +75,10 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
              b = np.zeros((d))
              Rout = lstm_lrp_c[t,:]
              N = 2*d
-             lstm_lrp_c[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
+             lstm_lrp_c[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
 
-             zi = np.multiply(i_t,g_t)
-             lstm_lrp_g[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
+             zi = i_t*g_t
+             lstm_lrp_g[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
 
              zi = feed[t,:]
              zj = g_t
@@ -86,11 +86,11 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
              b = b_tot[d:2*d]
              Rout = lstm_lrp_g[t,:]
              N = d + T[1]
-             lstm_lrp_x[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
+             lstm_lrp_x[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
              
              zi = lstm_hidden[t-1,:]
              W = g_arr[T[1]:,:]
-             lstm_lrp_h[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug=False)
+             lstm_lrp_h[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
 
      
         return lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
@@ -132,6 +132,7 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
         feed = single_input_data
         lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
 
+        
 
     return lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
 
@@ -139,17 +140,19 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
         
 def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
 
+    LRP = dict()
+    
     keys_test,data_test = data_format.get_data(test_data_json)
     for k in keys_test:
-         kkeys = data_test[k].keys()
+         kkeys = list(data_test[k].keys())
          kdata = np.array(list(data_test[k].values()))
          T = kdata.shape
         
-         lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
+         lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
-         print(lrp_fc)
-         print(lstm_lrp_x)
-         print(lstm_lrp_h)
-         print(lstm_lrp_g)
-         print(lstm_lrp_c)
+         
+         w = dict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
+         LRP[k] = w
+
+    return LRP
          
