@@ -28,7 +28,6 @@ import json
 import sys
 import lrp
 import os
-import _pickle
 import heatmap
 
 ex = Experiment('IMDBMovieReview-LSTM')
@@ -173,6 +172,9 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,'./bokeh_vis/data/test_data_input.json',save_dir+"test_model_internals_fc.json",save_dir+"test_model_internals_lstm_hidden.json",save_dir+"test_model_internals_lstm_states.json",eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
 
     predicted_tgs = model.predict_label(feed)
+
+    print(LRP)
+    print(predicted_tgs)
 
     with open(save_dir+"LRP.pickle","wb") as handle:
         _pickle.dump((LRP,predicted_tags),handle)
