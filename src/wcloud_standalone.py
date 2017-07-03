@@ -72,52 +72,61 @@ def config():
 
 
 
+def get_wcloud(LRP,k,save_dir):
 
-@ex.automain
-def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,feed_input_json,internal_fc_json,internal_hidden_json,internal_state_json):
-    
-    _,_,testX,_,_,_,_,_,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
-
-    with open('trainValidtest.pickle','rb') as handle:
-        (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = _pickle.load(handle)
-
-        
-    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,testX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
-    sess = model.session 
-    saver = model.trainer.saver
-    saver.restore(sess,tf.train.latest_checkpoint(ckp_path))
-    save_dir = save_path+run_id+"/"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    feed = testX 
-    input_files = filenames_test_sfd
-        
-    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,feed_input_json,save_dir+internal_fc_json,save_dir+internal_hidden_json,save_dir+internal_state_json,eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
-    predicted_tgs = model.predict_label(feed)
-
-    """
-    with open(save_dir+"LRP.pickle","wb") as handle:
-        _pickle.dump((LRP,predicted_tgs),handle)
-        
-    print(heatmap.html_heatmap(LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['words'], LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['scores'] ))
-    """
-
-    kkeys = list(LRP.keys())
-    for k in kkeys:
-        ws = LRP[k]['words']
-        scs = LRP[k]['scores']
-        weights=collections.OrderedDict()
-        for i in range(len(ws)):
-            weights[ws[i]] = scs[i]
-        wc = WordCloud(
+     ws = LRP[k]['words']
+     scs = LRP[k]['scores']
+     weights=collections.OrderedDict()
+     for i in range(len(ws)):
+         weights[ws[i]] = scs[i]
+     wc = WordCloud(
             background_color="white",
             max_words=2000,
             width = 1024,
             height = 720,
             stopwords=stopwords.words("english")
-        )
-        wc.generate_from_frequencies(weights)
-        wc.to_file(save_dir+re.sub('/', '_', k[37:-4])+"_word_cloud.png")
+          )
+     wc.generate_from_frequencies(weights)
+     wc.to_file(save_dir+re.sub('/', '_', k[37:-4])+"_word_cloud.png")
+        
+     return wc.to_array()
+
+@ex.automain
+def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,feed_input_json,internal_fc_json,internal_hidden_json,internal_state_json):
+
+    save_dir = save_path+run_id+"/"
+    if not os.path.exists(save_dir):
+       os.makedirs(save_dir)
+    if os.path.isfile(save_dir+"LRP.pickle")==False: 
+
+        """
+        _,_,testX,_,_,_,_,_,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+        """
+        with open('trainValidtest.pickle','rb') as handle:
+            (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = _pickle.load(handle)
+        
+        model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,testX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
+        sess = model.session 
+        saver = model.trainer.saver
+        saver.restore(sess,tf.train.latest_checkpoint(ckp_path))
+
+        feed = testX 
+        input_files = filenames_test_sfd
+        
+        LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,feed_input_json,save_dir+internal_fc_json,save_dir+internal_hidden_json,save_dir+internal_state_json,eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
+        predicted_tgs = model.predict_label(feed)
+
+        """
+        print(heatmap.html_heatmap(LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['words'], LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['scores'] ))
+        """
+    else:
+        with open(save_dir+"LRP.pickle","rb") as handle:
+            (LRP,predicted_tgs) = _pickle.load(handle)
+        
+
+    kkeys = list(LRP.keys())
+    for k in kkeys:
+        _ = get_wcloud(LRP,k,save_dir)
     
     
 
