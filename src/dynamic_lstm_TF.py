@@ -177,9 +177,6 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     with open(save_dir+"LRP.pickle","wb") as handle:
         _pickle.dump((LRP,predicted_tags),handle)
     
-    #print(predicted_tgs)
-    #print(heatmap.html_heatmap(LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['words'], LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['scores'] ))
-    
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
