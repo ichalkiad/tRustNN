@@ -89,7 +89,8 @@ def update_source(attrname, old, new):
     algorithm_cl = clustering_selections[0].value
     n_clusters = int(clustering_selections[1].value)
     cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl,n_clusters)
-
+    rawInput_plot.title.text = algorithm_cl+" - "+rawInput_selections.value
+    
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
     if performance_metric!=(None,None):
         project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
@@ -154,7 +155,7 @@ hover_input.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)"),("Input word","@
 hover_input.mode = 'mouse'
 tools_input = "pan,wheel_zoom,box_zoom,reset"
 
-rawInput_plot = figure(title=rawInput_selections.value,tools=tools_input)
+rawInput_plot = figure(title=clustering_selections[0].value+" - "+rawInput_selections.value,tools=tools_input)
 rawInput_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=rawInput_source, legend=None)
 rawInput_plot.add_tools(hover_input)
 
