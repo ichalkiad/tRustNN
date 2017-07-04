@@ -3,7 +3,7 @@ import numpy as np
 import collections
 import tflearn
 import json
-import _pickle
+#import _pickle
 
 def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",save_dir="/tmp/",save_mode="json"):
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data

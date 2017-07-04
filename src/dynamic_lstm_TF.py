@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ 13# -*- coding: utf-8 -*-
 """
 LSTM to classify IMDB sentiment dataset.
 References:
@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData import filenames_train_valid,filenames_test
+from IMDB_dataset.textData_cluster import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -29,7 +29,7 @@ import sys
 import lrp
 import os
 import heatmap
-import _pickle
+#import _pickle
 
 ex = Experiment('IMDBMovieReview-LSTM')
 
@@ -166,17 +166,18 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     input_files = filenames_test_sfd
     
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
-
+    print("Exported internals...")
+    
     d = imdb_pre.get_input_json(input_files)
     with open(save_dir+"test_data_input.json", "w") as f:
         json.dump(d, f)
-
+    print("Exported test data dictionary...")
+    
     LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input.json",save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
-
     predicted_tgs = model.predict_label(feed)
-
     with open(save_dir+"LRP.pickle","wb") as handle:
-        _pickle.dump((LRP,predicted_tags),handle)
+        _pickle.dump((LRP,predicted_tgs),handle)
+    print("Finished with LRP...")
     
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
