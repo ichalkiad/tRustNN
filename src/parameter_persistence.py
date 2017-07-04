@@ -3,8 +3,9 @@ import numpy as np
 import collections
 import tflearn
 import json
+import _pickle
 
-def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",save_dir="/tmp/"):
+def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",save_dir="/tmp/",save_mode="json"):
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
 # input_files has to be a list even if it is a single file
     
@@ -54,15 +55,24 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                for i in range(len(input_files)):
                    fc_outputs[input_files[i]] = data_out[i,:].tolist()
                
-            
-    with open(save_dir+"model_internals_fc.json", 'w') as f:
-         json.dump(fc_outputs, f)
-    with open(save_dir+"model_internals_lstm_outputs.json", 'w') as f:
-         json.dump(lstm_outputs, f)
-    with open(save_dir+"model_internals_lstm_hidden.json", 'w') as f:
-         json.dump(lstm_hidden, f)
-    with open(save_dir+"model_internals_lstm_states.json", 'w') as f:
-         json.dump(lstm_states, f)
+    if save_mode=="json":
+        with open(save_dir+"model_internals_fc.json", 'w') as f:
+            json.dump(fc_outputs, f)
+        with open(save_dir+"model_internals_lstm_outputs.json", 'w') as f:
+            json.dump(lstm_outputs, f)
+        with open(save_dir+"model_internals_lstm_hidden.json", 'w') as f:
+            json.dump(lstm_hidden, f)
+        with open(save_dir+"model_internals_lstm_states.json", 'w') as f:
+            json.dump(lstm_states, f)
+    elif save_mode=="pickle":
+        with open(save_dir+"model_internals_fc.pickle", 'wb') as f:
+            _pickle.dump(fc_outputs, f)
+        with open(save_dir+"model_internals_lstm_outputs.pickle", 'wb') as f:
+            _pickle.dump(lstm_outputs, f)
+        with open(save_dir+"model_internals_lstm_hidden.pickle", 'wb') as f:
+            _pickle.dump(lstm_hidden, f)
+        with open(save_dir+"model_internals_lstm_states.pickle", 'wb') as f:
+            _pickle.dump(lstm_states, f)
 
 
 

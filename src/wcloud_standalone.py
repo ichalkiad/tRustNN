@@ -16,13 +16,12 @@ import os
 import heatmap
 from dynamic_lstm_TF import build_network
 import _pickle
-from parameter_persistence import export_serial_model,export_serial_lstm_data
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from wordcloud import WordCloud
 import nltk
 from nltk.corpus import stopwords
 import re
-
+from bokeh.plotting import figure, show, output_file
 ex = Experiment('IMDBMovieReview-WordCloud')
 
 @ex.config
@@ -53,7 +52,7 @@ def config():
     internal_fc_json = "test_standalone_model_internals_fc.json"
     internal_hidden_json = "test_standalone_model_internals_lstm_hidden.json"
     internal_state_json = "test_standalone_model_internals_lstm_states.json"
-
+    save_mode = "json"
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -127,6 +126,5 @@ def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,
     kkeys = list(LRP.keys())
     for k in kkeys:
         _ = get_wcloud(LRP,k,save_dir)
-    
-    
+        
 

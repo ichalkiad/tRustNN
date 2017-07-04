@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames_train_valid,filenames_test
+from IMDB_dataset.textData import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -29,6 +29,7 @@ import sys
 import lrp
 import os
 import heatmap
+import _pickle
 
 ex = Experiment('IMDBMovieReview-LSTM')
 
@@ -56,6 +57,7 @@ def config():
     embedding_dim = 300
     ckp_path = None #"./sacred_models/ckp/"
     internals = "all"    
+    save_mode = "json"
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -121,7 +123,7 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
 
 @ex.automain
-def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals):
+def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode):
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
@@ -163,18 +165,15 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     feed = testX
     input_files = filenames_test_sfd
     
-    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_")
+    export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
 
     d = imdb_pre.get_input_json(input_files)
-    with open("./bokeh_vis/data/test_data_input.json", "w") as f:
+    with open(save_dir+"test_data_input.json", "w") as f:
         json.dump(d, f)
 
-    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,'./bokeh_vis/data/test_data_input.json',save_dir+"test_model_internals_fc.json",save_dir+"test_model_internals_lstm_hidden.json",save_dir+"test_model_internals_lstm_states.json",eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
+    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input.json",save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
 
     predicted_tgs = model.predict_label(feed)
-
-    print(LRP)
-    print(predicted_tgs)
 
     with open(save_dir+"LRP.pickle","wb") as handle:
         _pickle.dump((LRP,predicted_tags),handle)

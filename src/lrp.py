@@ -98,11 +98,12 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
    
 def load_intermediate_outputs(input_filename,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None):
 #layer_name is currently not needed - for networks with more layers we will need it, as the json structure will change
+
      
      keys_hidden,data_hidden = data_format.get_data(lstm_hidden_json)
      keys_cell,data_cell = data_format.get_data(lstm_cell_json)
      keys_fc,data_fc = data_format.get_data(fc_json)
-
+          
      lstm_hidden = data_hidden[input_filename]
      lstm_cell   = data_cell[input_filename]
      fc_out      = data_fc[input_filename]
