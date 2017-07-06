@@ -22,6 +22,9 @@ import nltk
 from nltk.corpus import stopwords
 import re
 from bokeh.plotting import figure, show, output_file
+import wcloud_group_coloring as wcColor
+
+
 ex = Experiment('IMDBMovieReview-WordCloud')
 
 @ex.config
@@ -71,7 +74,7 @@ def config():
 
 
 
-def get_wcloud(LRP,k,save_dir):
+def get_wcloud(LRP,k,save_dir,color_dict=None):
 
      ws = LRP[k]['words']
      scs = LRP[k]['scores']
@@ -86,6 +89,12 @@ def get_wcloud(LRP,k,save_dir):
             stopwords=stopwords.words("english")
           )
      wc.generate_from_frequencies(weights)
+     if color_dict!=None:
+        default_color = 'grey'
+        grouped_color_func_single = wcColor.SimpleGroupedColorFunc(color_dict, default_color)
+
+        wc.recolor(color_func=grouped_color_func_single)
+        
      wc.to_file(save_dir+re.sub('/', '_', k[37:-4])+"_word_cloud.png")
         
      return wc.to_array()

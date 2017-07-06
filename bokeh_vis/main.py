@@ -10,12 +10,25 @@ import clustering
 import random
 import sys
 import os
+import _pickle
+
 
 src_path = os.path.abspath("./src/")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 import data_format
+from wcloud_standalone import get_wcloud
 
+def get_wc_colourGroups(rawInput_source):
+
+    words  = rawInput_source.data['w']
+    colors = rawInput_source.data['z']
+    color_dict = dict()
+    
+    for color in sorted(data_format.list_duplicates(colors)):
+        color_dict[color[0]] = list(words[color[1]])
+
+    return color_dict
 
 def get_selections(keys):
     
@@ -102,15 +115,24 @@ def update_source(attrname, old, new):
     X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, dimensions, labels=labels)
     w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm_cl,n_clusters)
     rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
-    
+
+    if LRP,rawInput_selections.value='All':
+        color_dict = get_wc_colourGroups(rawInput_source)
+        get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
+
 
     
-
-    
+ 
 #Get trained model parameters: weights and gate values
 keys,data = data_format.get_data("./bokeh_vis/data/model.json")
 #Get raw input
 keys_raw,data_raw = data_format.get_data("./bokeh_vis/data/test_data_input.json")
+
+#Load LRP dictionary
+LRP_pickle = '/home/yannis/Desktop/tRustNN/sacred_models/runIDstandalone/'
+wc_saveDir = '/home/yannis/Desktop/'
+with open(LRP_pickle+"LRP.pickle","rb") as handle:
+    (LRP,predicted_tgs) = _pickle.load(handle)
 
 
 #LSTM gates
@@ -159,6 +181,13 @@ rawInput_plot = figure(title=clustering_selections[0].value+" - "+rawInput_selec
 rawInput_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=rawInput_source, legend=None)
 rawInput_plot.add_tools(hover_input)
 
+if LRP,rawInput_selections.value='All':
+   color_dict = get_wc_colourGroups(rawInput_source)
+   get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
+
+
+
+
 #Layout
 for attr in gate_selections:
     attr.on_change('value', update_source)
@@ -173,3 +202,6 @@ rawInput_selections.on_change('value', update_source)
 gp = gridplot([[project_plot, rawInput_plot],[row(gate_inputs, projection_inputs,clustering_inputs, rawInput_inputs)]], responsive=True)
 curdoc().add_root(gp)
 curdoc().title = "tRustNN"
+
+
+

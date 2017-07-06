@@ -1,4 +1,4 @@
- 13# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 LSTM to classify IMDB sentiment dataset.
 References:

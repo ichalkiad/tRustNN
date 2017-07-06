@@ -1,6 +1,7 @@
 import numpy as np
 import json
-#import _pickle
+import _pickle
+from collections import defaultdict
 
 def return_keys(json_file):
 
@@ -39,4 +40,11 @@ def get_data(json):
     data = return_JSONcontent(keys,json)
 
     return keys,data
-                           
+
+
+def list_duplicates(seq):
+    tally = defaultdict(list)
+    for i,item in enumerate(seq):
+        tally[item].append(i)
+        
+    return ((key,locs) for key,locs in tally.items() if len(locs)>1)

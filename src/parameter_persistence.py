@@ -3,7 +3,7 @@ import numpy as np
 import collections
 import tflearn
 import json
-#import _pickle
+import _pickle
 
 def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",save_dir="/tmp/",save_mode="json"):
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
@@ -11,7 +11,7 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
     
     lstm_outputs = collections.OrderedDict()
     lstm_states  = collections.OrderedDict()
-    lstm_hidden  = collections.OrderedDict()  ## REDUNDANT? SAME AS OUTPUTS? yes, outputs includes the unncessary zeros at the end
+    lstm_hidden  = collections.OrderedDict()  ## same as outputs, but latter includes the unncessary zeros at the end
     fc_outputs   = collections.OrderedDict()
     
     with model.session.as_default():
