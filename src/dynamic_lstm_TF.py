@@ -127,7 +127,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
 
     """
     with open('trainValidtest.pickle','rb') as handle:
@@ -141,7 +141,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
 
     
     print("Evaluating trained model on test set...")
-    score = model.evaluate(testX,testY)
+    score = model.evaluate(testX,testY,batch_size=maxlen)
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
     
     

@@ -33,7 +33,7 @@ def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='po
         if len(s) < maxlen:
            while not len(s)==maxlen:
                s.append(pads)           
-    return trainX,validX,testX
+    return trainX,validX,testX,maxlen
 
 
 
@@ -192,11 +192,11 @@ def get_input_json(filenames):
 def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None):
 
     trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features_w2v(filenames_train_valid,filenames_test,seed)
-    trainX,validX,testX = pad_sequences(trainX, validX, testX, value=0.)
+    trainX,validX,testX,maxlen = pad_sequences(trainX, validX, testX, value=0.)
     trainX = np.array(trainX)
     validX = np.array(validX)
     testX  = np.array(testX)
     
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
-    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test
+    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen

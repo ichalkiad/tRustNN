@@ -28,7 +28,7 @@ class NLTKPreprocessor(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         return [
-            list(self.tokenize(open(doc,"r").read())) for doc in X
+           list(self.tokenize(open(doc,"r").read())) for doc in X
         ]
 
     def tokenize(self, document):
@@ -97,7 +97,6 @@ class TfidfEmbeddingVectorizer(object):
                      doc_VecList.append(self.word2vec[w] * self.word2weight[w]) 
                  else:
                      doc_VecList.append(np.zeros(self.dim))
-            
             X_transformed.append(doc_VecList)
             
 
