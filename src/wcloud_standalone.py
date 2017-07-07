@@ -49,7 +49,7 @@ def config():
     n_words = 10000
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
-    ckp_path = "./sacred_models/runID/"
+    ckp_path = "./sacred_models/runID" #+ run_id
     internals = "all"    
     feed_input_json = './bokeh_vis/data/test_data_input.json'
     internal_fc_json = "test_standalone_model_internals_fc.json"
@@ -121,7 +121,7 @@ def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,
         feed = testX 
         input_files = filenames_test_sfd
         
-        LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,feed_input_json,save_dir+internal_fc_json,save_dir+internal_hidden_json,save_dir+internal_state_json,eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
+        LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,feed_input_json,save_dir+internal_fc_json,save_dir+internal_hidden_json,save_dir+internal_state_json,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False)
         predicted_tgs = model.predict_label(feed)
 
         """

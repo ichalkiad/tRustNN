@@ -8,7 +8,18 @@ import tflearn
 from lrp_linear import lrp_linear as lrp_linear
 import json
 import sys
+import re
 
+def get_reviewRelevant_cells(lrp_fc,review,save_dir,topN=5):
+     
+     sorted_LRP = np.argsort(lrp_fc,axis=0,kind='quicksort')
+     idx = sorted_LRP[-(topN+1):-1].tolist()
+     
+     with open(re.sub('/', '_', review[37:-4])+"_lrpCells.json", 'w') as f:
+            json.dump({review:idx}, f)
+            
+         
+     
 def get_gate(W,b,in_concat):
 # in_concat is concatenation(current_input, input_prev_timestep)
 # b should correspond to specific gate bias
@@ -139,7 +150,7 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
 
 
         
-def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
+def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False):
 
     LRP = dict()
     
@@ -152,6 +163,8 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
          
+         get_reviewRelevant_cells(lrp_fc,k,save_dir,topN)
+         sys.exit(0)
          w = dict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
          LRP[k] = w
 

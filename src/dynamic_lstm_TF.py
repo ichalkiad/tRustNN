@@ -173,7 +173,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
         json.dump(d, f)
     print("Exported test data dictionary...")
     
-    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input.json",save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False)
+    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input.json",save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False)
     predicted_tgs = model.predict_label(feed)
     with open(save_dir+"LRP.pickle","wb") as handle:
         _pickle.dump((LRP,predicted_tgs),handle)
