@@ -84,8 +84,8 @@ def get_wcloud(LRP,k,save_dir,color_dict=None):
      wc = WordCloud(
             background_color="white",
             max_words=2000,
-            width = 1024,
-            height = 720,
+            width = 400,
+            height = 400,
             stopwords=stopwords.words("english")
           )
      wc.generate_from_frequencies(weights)
@@ -94,10 +94,12 @@ def get_wcloud(LRP,k,save_dir,color_dict=None):
         grouped_color_func_single = wcColor.SimpleGroupedColorFunc(color_dict, default_color)
 
         wc.recolor(color_func=grouped_color_func_single)
+
+
+     save_filename = save_dir+re.sub('/', '_', k[37:-4])+"_word_cloud.png"
+     wc.to_file(save_filename)
         
-     wc.to_file(save_dir+re.sub('/', '_', k[37:-4])+"_word_cloud.png")
-        
-     return wc.to_array()
+     return save_filename,wc.to_image()
 
 @ex.automain
 def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,feed_input_json,internal_fc_json,internal_hidden_json,internal_state_json):
