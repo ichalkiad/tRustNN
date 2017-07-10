@@ -1,4 +1,4 @@
-from bokeh.models import ColumnDataSource, HoverTool
+from bokeh.models import ColumnDataSource, HoverTool, Range1d, Plot, LinearAxis, Grid
 from bokeh.plotting import figure, show, output_file
 from bokeh.io import output_notebook, show, curdoc
 from bokeh.layouts import row, widgetbox, column, gridplot
@@ -11,7 +11,7 @@ import random
 import sys
 import os
 import _pickle
-
+from bokeh.models.glyphs import ImageURL
 
 src_path = os.path.abspath("./src/")
 if src_path not in sys.path:
@@ -51,8 +51,7 @@ def get_clustering_selections(algorithms):
 def get_rawInput_selections():
 
     review = [r for r in keys_raw]
-    review.append("All")
-    select_rawInput = Select(title="Input text", value="All", options=review)
+    select_rawInput = Select(title="Input text", value=review[0], options=review)
 
     return select_rawInput
 
@@ -115,22 +114,26 @@ def update_source(attrname, old, new):
     X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, dimensions, labels=labels)
     w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm_cl,n_clusters)
     rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
-
-    if LRP,rawInput_selections.value='All':
-        color_dict = get_wc_colourGroups(rawInput_source)
-        get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
-
-
     
- 
+    if (LRP!=None):
+        color_dict = get_wc_colourGroups(rawInput_source)
+        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
+        wc_plot.add_glyph(img_source, ImageURL(url=dict(value=wc_saveDir+wc_filename), x=0, y=0, anchor="bottom_left"))
+
+
+
+
+
+        
 #Get trained model parameters: weights and gate values
-keys,data = data_format.get_data("./bokeh_vis/data/model.json")
+keys,data = data_format.get_data("bokeh_vis/static/model.json")
 #Get raw input
-keys_raw,data_raw = data_format.get_data("./bokeh_vis/data/test_data_input.json")
+keys_raw,data_raw = data_format.get_data("bokeh_vis/static/test_data_input.json")
 
 #Load LRP dictionary
-LRP_pickle = '/home/yannis/Desktop/tRustNN/sacred_models/runIDstandalone/'
-wc_saveDir = '/home/yannis/Desktop/'
+LRP_pickle = 'bokeh_vis/static/'
+wc_saveDir = 'bokeh_vis/static/'
+LRP=None
 with open(LRP_pickle+"LRP.pickle","rb") as handle:
     (LRP,predicted_tgs) = _pickle.load(handle)
 
@@ -181,12 +184,18 @@ rawInput_plot = figure(title=clustering_selections[0].value+" - "+rawInput_selec
 rawInput_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=rawInput_source, legend=None)
 rawInput_plot.add_tools(hover_input)
 
-if LRP,rawInput_selections.value='All':
+if (LRP!=None):
    color_dict = get_wc_colourGroups(rawInput_source)
-   get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
+   wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
 
 
-
+url = wc_saveDir+wc_filename
+img_source = ColumnDataSource(dict(url = [url]))
+xdr = Range1d(start=0, end=400)
+ydr = Range1d(start=0, end=400)
+wc_plot = Plot(title=None, x_range=xdr, y_range=ydr, plot_width=500, plot_height=460, min_border=0)
+image = ImageURL(url=dict(value=url), x=0, y=0, anchor="bottom_left")
+wc_plot.add_glyph(img_source, image)
 
 #Layout
 for attr in gate_selections:
@@ -198,8 +207,7 @@ for attr in clustering_selections:
 rawInput_selections.on_change('value', update_source)
 
 
-#row(gate_inputs, projection_inputs, project_plot, clustering_inputs, cluster_plot, width=400)
-gp = gridplot([[project_plot, rawInput_plot],[row(gate_inputs, projection_inputs,clustering_inputs, rawInput_inputs)]], responsive=True)
+gp = gridplot([[project_plot, wc_plot],[row(gate_inputs, projection_inputs,clustering_inputs, rawInput_inputs)]], responsive=True)
 curdoc().add_root(gp)
 curdoc().title = "tRustNN"
 
