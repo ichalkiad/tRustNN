@@ -51,7 +51,7 @@ def config():
     embedding_dim = 300
     ckp_path = "./sacred_models/runID" #+ run_id
     internals = "all"    
-    feed_input_json = './bokeh_vis/data/test_data_input.json'
+    feed_input_json = './bokeh_vis/static/test_data_input.json'
     internal_fc_json = "test_standalone_model_internals_fc.json"
     internal_hidden_json = "test_standalone_model_internals_lstm_hidden.json"
     internal_state_json = "test_standalone_model_internals_lstm_states.json"

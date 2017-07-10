@@ -11,6 +11,67 @@ import sys
 import re
 
 
+def get_completeNeuronAct_data(save_dir,cellAct_datafiles):
+
+    nAct_data = dict()
+
+    nAct_data = cellAct_data[0]
+    for i in range((1,len(cellAct_data))):
+        keys,data = data_format.get_data(cellAct_data[i])
+        kkeys = list(keys)
+        for j in kkeys:
+            if j in list(nAct_data.keys()):
+               vals = list(data[j].values()) + list(set(list(nAct_data[j].values()))-set(list(data[j].values())))
+               nAct_data[j] = vals
+            else:
+               nAct_data[j] = list(data[j].values())
+
+    return nAct_data        
+        
+def neuron_value(test_data_json,review,neuron):
+    
+    keys_test,data_test = data_format.get_data(test_data_json)
+    kkeys = list(data_test[review].keys())
+    kdata = data_test[review]
+    
+    val = 0.0
+    for w in neuron:
+        val = val + np.array(list(kdata[w]))
+
+    
+    return np.array(val).sum()/len(neuron)
+
+
+def neuron_distance(test_data_json,review,neuron1,neuron2):
+# neuron1, neuron2 are given as a list of words that trigger them most
+    
+    n1_n2 = [item for item in neuron1 if item not in neuron2]
+    n2_n1 = [item for item in neuron2 if item not in neuron1]
+
+    if set(neuron1) == set(neuron2):
+        return 0.0
+    if (len(n1_n2)>=2 and len(n2_n1)>=2):
+        a = neuron_value(test_data_json,review,neuron1)
+        b = neuron_value(test_data_json,review,neuron2)
+        return a-b
+    else:
+    #return arbitrary large value
+        return 1000
+
+    
+def get_DstMatrix_singleReview(review_MaxAct_json,test_data_json,review):
+
+    keys,data = data_format.get_data(review_MaxAct_json)
+    kkeys = list(keys)
+
+    dstMat = np.zeros((len(kkeys),len(kkeys)))
+    for i in range((len(kkeys))):
+        for j in range(i,len(kkeys)):
+                 dstMat[i,j] = neuron_distance(test_data_json,review,list(data[kkeys[i]]),list(data[kkeys[j]]))
+            
+    return dstMat
+                
+
 def invert_dict_nonunique(d):
     newdict = {}
     for k in d:
@@ -18,6 +79,7 @@ def invert_dict_nonunique(d):
             newdict.setdefault(v, []).append(k)
             
     return newdict
+
 
 def get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN=5):
 
@@ -30,11 +92,11 @@ def get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN=5):
           d[kkeys[i]] = ord_cells[-(topN+1):-1].tolist()
 
      NtoW = invert_dict_nonunique(d)
-             
+     
      with open(save_dir+re.sub('/', '_', k[37:-4])+"_ActCells.json", 'w') as f:
             json.dump(NtoW, f)
 
-     return d
+     return re.sub('/', '_', k[37:-4])+"_ActCells.json",NtoW
           
 def get_reviewRelevant_cells(lrp_fc,review,save_dir,topN=5):
      
@@ -178,6 +240,7 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
 def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False):
 
     LRP = dict()
+    cellAct_data = []
     
     keys_test,data_test = data_format.get_data(test_data_json)
     for k in keys_test:
@@ -189,9 +252,9 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
 
          
          get_reviewRelevant_cells(lrp_fc,k,save_dir,topN)
-         get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN)
-         
-        
+         review_filename, _ = get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN)
+         dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
+         cellAct_data.append(review_filename)
          
          w = dict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
          LRP[k] = w

@@ -121,9 +121,6 @@ def update_source(attrname, old, new):
         wc_plot.add_glyph(img_source, ImageURL(url=dict(value=wc_saveDir+wc_filename), x=0, y=0, anchor="bottom_left"))
 
 
-
-
-
         
 #Get trained model parameters: weights and gate values
 keys,data = data_format.get_data("bokeh_vis/static/model.json")
