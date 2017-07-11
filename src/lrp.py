@@ -9,7 +9,7 @@ from lrp_linear import lrp_linear as lrp_linear
 import json
 import sys
 import re
-
+import _pickle
 
 def get_completeNeuronAct_data(save_dir,neuronWords_jsons):
 
