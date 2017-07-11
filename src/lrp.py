@@ -11,22 +11,22 @@ import sys
 import re
 
 
-def get_completeNeuronAct_data(save_dir,cellAct_datafiles):
+def get_completeNeuronAct_data(save_dir,neuronWords_jsons):
 
-    nAct_data = dict()
+    #neuron-word data dictionary
+    nw_data = dict()
 
-    nAct_data = cellAct_data[0]
-    for i in range((1,len(cellAct_data))):
-        keys,data = data_format.get_data(cellAct_data[i])
+    for i in neuronWords_jsons:
+        keys,data = data_format.get_data(save_dir+i)
         kkeys = list(keys)
         for j in kkeys:
-            if j in list(nAct_data.keys()):
-               vals = list(data[j].values()) + list(set(list(nAct_data[j].values()))-set(list(data[j].values())))
-               nAct_data[j] = vals
+            if j in list(nw_data.keys()):
+               vals = list(data[j]) + list(set(list(nw_data[j]))-set(list(data[j])))
+               nw_data[j] = vals
             else:
-               nAct_data[j] = list(data[j].values())
+               nw_data[j] = data[j]
 
-    return nAct_data        
+    return nw_data        
         
 def neuron_value(test_data_json,review,neuron):
     
@@ -63,7 +63,6 @@ def get_DstMatrix_singleReview(review_MaxAct_json,test_data_json,review):
 
     keys,data = data_format.get_data(review_MaxAct_json)
     kkeys = list(keys)
-
     dstMat = np.zeros((len(kkeys),len(kkeys)))
     for i in range((len(kkeys))):
         for j in range(i,len(kkeys)):
@@ -97,7 +96,9 @@ def get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN=5):
             json.dump(NtoW, f)
 
      return re.sub('/', '_', k[37:-4])+"_ActCells.json",NtoW
-          
+
+
+ 
 def get_reviewRelevant_cells(lrp_fc,review,save_dir,topN=5):
      
      sorted_LRP = np.argsort(lrp_fc,axis=0,kind='quicksort')
@@ -240,7 +241,7 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
 def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False):
 
     LRP = dict()
-    cellAct_data = []
+    neuronWords_jsons = []
     
     keys_test,data_test = data_format.get_data(test_data_json)
     for k in keys_test:
@@ -253,11 +254,15 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          
          get_reviewRelevant_cells(lrp_fc,k,save_dir,topN)
          review_filename, _ = get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN)
-         dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
-         cellAct_data.append(review_filename)
+         neuronWords_jsons.append(review_filename)
          
          w = dict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
          LRP[k] = w
 
+    neuronWords_data_fullTestSet = get_completeNeuronAct_data(save_dir,neuronWords_jsons)
+    with open(save_dir+"neuronWords_data_fullTestSet.pickle", 'wb') as f:
+        _pickle.dump((neuronWords_data_fullTestSet,neuronWords_jsons), f)
+
+    
     return LRP
          
