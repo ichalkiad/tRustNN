@@ -10,7 +10,14 @@ import dim_reduction
 from sklearn import cluster
 from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import StandardScaler
+import json
+import os
+import sys
 
+src_path = os.path.abspath("./src/")
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+from lrp import get_DstMatrix_singleReview
 
 def clustering(X, algorithm, n_clusters):
 
@@ -73,29 +80,44 @@ def clustering(X, algorithm, n_clusters):
 
 
 
-def apply_cluster(data,algorithm,n_clusters):
+def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neuronData_jsons=None,test_data_json=None,load_dir=None):
 
     spectral = np.hstack([Spectral6] * 20)
+    #keep only review name
+    if review!=None:
+        review_part = review.split('/')[-1][:-4]
+    y_pred = None
+    colors = None
+    
+    if algorithm == "MiniBatchKMeans - selected gate":        
+        x_cl, y_pred = clustering(data, algorithm_data, n_clusters)
+        colors = [spectral[i] for i in y_pred]
+    else:
+        if algorithm == "DBSCAN - selected review":
+            reviewData_name = [s for s in neuronData_jsons if review_part in s][0]
+            dstMat = get_DstMatrix_singleReview(load_dir+reviewData_name,load_dir+test_data_json,review)
+            db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
+            core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+            core_samples_mask[db.core_sample_indices_] = True
+            y_pred = db.labels_.astype(np.int)
+            colors = [spectral[i] for i in y_pred]
+            
+        #elif algorithm == "DBSCAN - all reviews":
+        #elif algorithm == "AgglomerativeClustering - all reviews":
+    
 
-    x_cl, y_pred = clustering(data, algorithm, n_clusters)
-    colors = [spectral[i] for i in y_pred]
 
     return y_pred, colors, spectral
 
 
 def get_cluster_algorithms():
 
-    return [
-        'MiniBatchKMeans',
-        'AffinityPropagation',
-        'MeanShift',
-        'SpectralClustering',
-        'Ward',
-        'AgglomerativeClustering',
-        'DBSCAN',
-        'Birch'
-    ]
-
+#    return ['MiniBatchKMeans','AffinityPropagation','MeanShift','SpectralClustering','Ward','AgglomerativeClustering','DBSCAN','Birch']
+    return (["MiniBatchKMeans - selected gate",
+            "DBSCAN - selected review",
+            "DBSCAN - all reviews",
+            "AgglomerativeClustering - all reviews"
+           ], ["MiniBatchKMeans","SpectralClustering","Ward"])
 
     
 

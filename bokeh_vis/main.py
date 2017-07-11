@@ -41,12 +41,13 @@ def get_selections(keys):
     return (select_layer,select_gate)
 
 
-def get_clustering_selections(algorithms):
+def get_clustering_selections(algorithms_neurons,algorithms_data):
 
-    algorithm_select = Select(value='MiniBatchKMeans',title='Select clustering algorithm:',width=200, options=algorithms)
-    cluster_slider = Slider(title="Number of clusters",value=2.0,start=2.0,end=10.0,step=1,width=400)
+    algorithm_select_neuron = Select(value="MiniBatchKMeans - selected gate",title="Select clustering option for neurons:",width=200, options=algorithms_neurons)
+    algorithm_select_data = Select(value="MiniBatchKMeans",title="Select clustering option for raw data:",width=200, options=algorithms_data)
+    cluster_slider = Slider(title="Number of clusters - for kMeans",value=2.0,start=2.0,end=10.0,step=1,width=400)
 
-    return (algorithm_select,cluster_slider)
+    return (algorithm_select_neuron,algorithm_select_data,cluster_slider)
 
 def get_rawInput_selections():
 
@@ -57,7 +58,7 @@ def get_rawInput_selections():
 
 def get_projection_selections(algorithms):
 
-    algorithm_select = Select(value='PCA',title='Select projection algorithm:',width=200, options=algorithms)
+    algorithm_select = Select(value="PCA",title="Select projection algorithm:",width=200, options=algorithms)
     knn_slider = Slider(title="Number of neighbors",value=5.0,start=5.0,end=30.0,step=1,width=200)
     dim_slider = Slider(title="Number of dimensions",value=2,start=2,end=3,step=1,width=200)
     
@@ -88,7 +89,7 @@ def update_source(attrname, old, new):
     
     layer_value = gate_selections[0].value
     gate_value  = gate_selections[1].value
-
+    
     x = data[layer_value][gate_value]
 
     #update dimension reduction source
@@ -97,11 +98,14 @@ def update_source(attrname, old, new):
     dimensions = int(projection_selections[2].value)
     x_pr,performance_metric = dim_reduction.project(x, algorithm, knn, dimensions, labels)
 
+    
     #update clustering 
-    algorithm_cl = clustering_selections[0].value
-    n_clusters = int(clustering_selections[1].value)
-    cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl,n_clusters)
-    rawInput_plot.title.text = algorithm_cl+" - "+rawInput_selections.value
+    algorithm_cl_neurons = clustering_selections[0].value
+    algorithm_cl_data = clustering_selections[1].value
+    n_clusters = int(clustering_selections[2].value)
+    
+    cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData_jsons=neuronWords_jsons,test_data_json="test_data_input.json",load_dir=load_dir)
+    print(neuronWords_jsons)
     
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
     if performance_metric!=(None,None):
@@ -109,32 +113,45 @@ def update_source(attrname, old, new):
     else:
         project_plot.title.text = algorithm
 
+        
     #update raw input 
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
     X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, dimensions, labels=labels)
-    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm_cl,n_clusters)
+
+    ###FIX HERE!!! MAKE INDEPENDENT OF ,algorithm_cl_neurons,
+    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data)
     rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
     
-    if (LRP!=None):
-        color_dict = get_wc_colourGroups(rawInput_source)
-        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
-        wc_plot.add_glyph(img_source, ImageURL(url=dict(value=wc_saveDir+wc_filename), x=0, y=0, anchor="bottom_left"))
+    
+    color_dict = get_wc_colourGroups(rawInput_source)
+    wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
+    wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
 
 
         
+"""
+------------------------------------------------------------------------------------------------------------------------
+                   MAIN APP CODE
+------------------------------------------------------------------------------------------------------------------------
+"""
+
+load_dir = "./bokeh_vis/static/"
+
 #Get trained model parameters: weights and gate values
-keys,data = data_format.get_data("bokeh_vis/static/model.json")
+keys,data = data_format.get_data(load_dir+"model.json")
 #Get raw input
-keys_raw,data_raw = data_format.get_data("bokeh_vis/static/test_data_input.json")
+keys_raw,data_raw = data_format.get_data(load_dir+"test_data_input.json")
 
-#Load LRP dictionary
-LRP_pickle = 'bokeh_vis/static/'
-wc_saveDir = 'bokeh_vis/static/'
+#Load auxiliary data
 LRP=None
-with open(LRP_pickle+"LRP.pickle","rb") as handle:
+with open(load_dir+"LRP.pickle","rb") as handle:
     (LRP,predicted_tgs) = _pickle.load(handle)
+with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
+        neuronWords_data_fullTestSet,neuronWords_jsons = _pickle.load(f)
 
-
+        
+#Get preset buttons selections
+        
 #LSTM gates
 gate_selections = get_selections(keys)
 gate_inputs = widgetbox(gate_selections[0],gate_selections[1])
@@ -142,11 +159,13 @@ gate_inputs = widgetbox(gate_selections[0],gate_selections[1])
 projection_selections = get_projection_selections(dim_reduction.get_dimReduction_algorithms())
 projection_inputs = widgetbox(projection_selections[0],projection_selections[1],projection_selections[2])
 #Clustering
-clustering_selections = get_clustering_selections(clustering.get_cluster_algorithms())
-clustering_inputs = widgetbox(clustering_selections[0],clustering_selections[1])
+algorithm_neurons,algorithm_data = clustering.get_cluster_algorithms()
+clustering_selections = get_clustering_selections(algorithm_neurons,algorithm_data)
+clustering_inputs = widgetbox(clustering_selections[0],clustering_selections[1],clustering_selections[2])
 #Raw input clustering
 rawInput_selections = get_rawInput_selections()
 rawInput_inputs = widgetbox(rawInput_selections)
+
 
 hover = HoverTool()
 hover.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)")]
@@ -156,19 +175,19 @@ tools = "pan,wheel_zoom,box_zoom,reset,hover"
 #Dimensionality reduction
 labels = None # LOAD GROUND TRUTH OR NET-ASSIGNED LABELS??
 data_pr = data[gate_selections[0].value][gate_selections[1].value]
-X, performance_metric = dim_reduction.project(data_pr, 'PCA', n_neighbors=10, n_components=2, labels=labels)
-cluster_labels, colors, cl_spectral = clustering.apply_cluster(data_pr,'MiniBatchKMeans',2)
-proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=colors))
-
+X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, n_components=2, labels=labels)
+X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[2].value),algorithm_data=clustering_selections[1].value)
+proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors))
 project_plot = figure(title=projection_selections[0].value + performance_metric[0] + performance_metric[1],tools=tools)
 project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
 project_plot.xaxis.axis_label = 'Dim 1'
 project_plot.yaxis.axis_label = 'Dim 2'
 
+
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
-X_w2v, performance_metric_w2v = dim_reduction.project(text_data, 'PCA', n_neighbors=10, n_components=2, labels=labels)
-w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,'MiniBatchKMeans',2)
+X_w2v, performance_metric_w2v = dim_reduction.project(text_data, "PCA", n_neighbors=10, n_components=2, labels=labels)
+w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[2].value),algorithm_data=clustering_selections[1].value)
 rawInput_source = ColumnDataSource(dict(x=X_w2v[:,0],y=X_w2v[:,1],z=w2v_colors,w=text_words))
 
 
@@ -177,22 +196,23 @@ hover_input.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)"),("Input word","@
 hover_input.mode = 'mouse'
 tools_input = "pan,wheel_zoom,box_zoom,reset"
 
+"""
 rawInput_plot = figure(title=clustering_selections[0].value+" - "+rawInput_selections.value,tools=tools_input)
 rawInput_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=rawInput_source, legend=None)
 rawInput_plot.add_tools(hover_input)
+"""
 
-if (LRP!=None):
-   color_dict = get_wc_colourGroups(rawInput_source)
-   wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,wc_saveDir,color_dict=color_dict)
-
-
-url = wc_saveDir+wc_filename
-img_source = ColumnDataSource(dict(url = [url]))
+#WordCloud
+color_dict = get_wc_colourGroups(rawInput_source)
+wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
+img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=400)
 ydr = Range1d(start=0, end=400)
 wc_plot = Plot(title=None, x_range=xdr, y_range=ydr, plot_width=500, plot_height=460, min_border=0)
-image = ImageURL(url=dict(value=url), x=0, y=0, anchor="bottom_left")
+image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left")
 wc_plot.add_glyph(img_source, image)
+
+
 
 #Layout
 for attr in gate_selections:

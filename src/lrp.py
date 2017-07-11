@@ -33,7 +33,6 @@ def neuron_value(test_data_json,review,neuron):
     keys_test,data_test = data_format.get_data(test_data_json)
     kkeys = list(data_test[review].keys())
     kdata = data_test[review]
-    
     val = 0.0
     for w in neuron:
         val = val + np.array(list(kdata[w]))
@@ -50,7 +49,7 @@ def neuron_distance(test_data_json,review,neuron1,neuron2):
 
     if set(neuron1) == set(neuron2):
         return 0.0
-    if (len(n1_n2)>=2 and len(n2_n1)>=2):
+    if (len(n1_n2)>=1 and len(n2_n1)>=1):
         a = neuron_value(test_data_json,review,neuron1)
         b = neuron_value(test_data_json,review,neuron2)
         return a-b
