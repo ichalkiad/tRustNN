@@ -19,6 +19,21 @@ if src_path not in sys.path:
 import data_format
 from wcloud_standalone import get_wcloud
 
+
+def get_mostActiveWords(neuronWords_data_fullTestSet):
+
+    words = []
+    for k in range(len(list(neuronWords_data_fullTestSet.keys()))):
+        if str(k) in list(neuronWords_data_fullTestSet.keys()):
+            vals = list(neuronWords_data_fullTestSet[str(k)])
+            if len(vals)>5:
+                words.append(vals[0]+","+vals[1]+","+vals[2]+","+vals[3]+","+vals[4])
+            else:
+                for i in range(len(vals)):
+                    words.append(vals[i]+",")
+                    
+    return words
+
 def get_wc_colourGroups(rawInput_source):
 
     words  = rawInput_source.data['w']
@@ -115,7 +130,7 @@ def update_source(attrname, old, new):
         neuronData = neuronWords_data
     cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
     
-    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
+    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors,w=mostActiveWords)
     if performance_metric!=(None,None):
         project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
     else:
@@ -152,7 +167,7 @@ with open(load_dir+"LRP.pickle","rb") as handle:
     (LRP,predicted_tgs) = _pickle.load(handle)
 with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
         neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data = _pickle.load(f)
-
+mostActiveWords = get_mostActiveWords(neuronWords_data_fullTestSet)
         
 #Get preset buttons selections
         
@@ -176,17 +191,23 @@ hover.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)")]
 hover.mode = 'mouse'
 tools = "pan,wheel_zoom,box_zoom,reset,hover"
 
+hover_input = HoverTool()
+hover_input.tooltips = [("Cell", "$index"),("Activating words","@w")]
+hover_input.mode = 'mouse'
+tools_input = "pan,wheel_zoom,box_zoom,reset"
+
+
 #Dimensionality reduction
 labels = None # LOAD GROUND TRUTH OR NET-ASSIGNED LABELS??
 data_pr = data[gate_selections[0].value][gate_selections[1].value]
 X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, labels=labels)
 X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[2].value),algorithm_data=clustering_selections[1].value)
-proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors))
+proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors,w=mostActiveWords))
 project_plot = figure(title=projection_selections[0].value + performance_metric[0] + performance_metric[1],tools=tools)
 project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
 project_plot.xaxis.axis_label = 'Dim 1'
 project_plot.yaxis.axis_label = 'Dim 2'
-
+project_plot.add_tools(hover_input)
 
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
@@ -195,10 +216,6 @@ w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,alg
 rawInput_source = ColumnDataSource(dict(x=X_w2v[:,0],y=X_w2v[:,1],z=w2v_colors,w=text_words))
 
 
-hover_input = HoverTool()
-hover_input.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)"),("Input word","@w")]
-hover_input.mode = 'mouse'
-tools_input = "pan,wheel_zoom,box_zoom,reset"
 
 """
 rawInput_plot = figure(title=clustering_selections[0].value+" - "+rawInput_selections.value,tools=tools_input)
