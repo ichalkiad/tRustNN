@@ -12,6 +12,58 @@ import re
 import _pickle
 import gensim
 
+def get_reviewLRP_data(i,predictions,lrp_neurons):
+
+    reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
+
+    if predictions[i].all()==0:
+       for j in lrp_neurons:
+           if reviewLRP_data["neg"]==[]:
+              reviewLRP_data["neg"] = [j]
+           else:
+              if j in reviewLRP_data["pos"]:
+                   reviewLRP_data["pos"].remove(j)
+                   reviewLRP_data["neutral"].extend(j)
+              elif j not in reviewLRP_data["neg"]:
+                   reviewLRP_data["neg"].extend(lrp_neurons)
+    elif predictions[i]==1:
+       for j in lrp_neurons:
+           if reviewLRP_data["pos"]==[]:
+              reviewLRP_data["pos"] = [j]
+           else:
+              if j in reviewLRP_data["neg"]:
+                 reviewLRP_data["neg"].remove(j)
+                 reviewLRP_data["neutral"].extend(j)
+              elif j not in reviewLRP_data["pos"]:
+                 reviewLRP_data["pos"].extend(lrp_neurons)
+
+    return reviewLRP_data
+
+def get_PosNegPredictionLabel(reviewLRP_data):
+
+    max1=-1
+    max2=-1
+    max3=-1
+    if reviewLRP_data["pos"]!=[]:
+        max1 = max(reviewLRP_data["pos"])
+    if reviewLRP_data["neg"]!=[]:
+        max2 = max(reviewLRP_data["neg"])
+    if reviewLRP_data["neutral"]!=[]:
+        max3 = max(reviewLRP_data["neutral"])
+
+    neuron_num = max(max1,max2,max3)
+    posNeg_predictionLabel = np.zeros((neuron_num,))
+
+    for i in range(neuron_num):
+        if i in reviewLRP_data["pos"]:
+            posNeg_predictionLabel[i] = 1
+        elif i in reviewLRP_data["neutral"]:
+            posNeg_predictionLabel[i] = 2
+
+    return posNeg_predictionLabel
+
+
+
 def get_completeNeuronActDst(neuronWords_data_fullTestSet):
 
     model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
@@ -125,7 +177,8 @@ def get_reviewRelevant_cells(lrp_fc,review,save_dir,topN=5):
      
      with open(save_dir+re.sub('/', '_', review[37:-4])+"_lrpCells.json", 'w') as f:
             json.dump({review:idx}, f)
-            
+
+     return idx
     
 def get_gate(W,b,in_concat):
 # in_concat is concatenation(current_input, input_prev_timestep)
@@ -257,14 +310,16 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
 
 
         
-def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False):
+def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
 
     LRP = dict()
     neuronWords_jsons = []
     neuronWords_data = dict()
+   
     
     keys_test,data_test = data_format.get_data(test_data_json)
-    for k in keys_test:
+    for i in range(len(list(keys_test))):
+         k = list(keys_test)[i]
          kkeys = list(data_test[k].keys())
          kdata = np.array(list(data_test[k].values()))
          T = kdata.shape
@@ -272,7 +327,8 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
          
-         get_reviewRelevant_cells(lrp_fc,k,save_dir,topN)
+         lrp_neurons = get_reviewRelevant_cells(lrp_fc,k,save_dir,topN)
+         reviewLRP_data = get_reviewLRP_data(i,predictions,lrp_neurons)
          review_filename, _ = get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN)
          dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
          neuronWords_jsons.append(review_filename)
@@ -280,10 +336,12 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          w = dict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
          LRP[k] = w
 
+    posNeg_predictionLabel = get_PosNegPredictionLabel(reviewLRP_data)
     neuronWords_data_fullTestSet = get_completeNeuronAct_data(save_dir,neuronWords_jsons)
     neuronWords_data_full = get_completeNeuronActDst(neuronWords_data_fullTestSet)
     with open(save_dir+"neuronWords_data_fullTestSet.pickle", 'wb') as f:
-        _pickle.dump((neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data), f)
+        _pickle.dump((neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel), f)
+    print("Saved auxiliary data dictionaries and distance matrices...")
 
     
     return LRP

@@ -97,21 +97,19 @@ def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neur
             reviewData_name = [s for s in list(neuronData.keys()) if review_part in s][0]
             dstMat = neuronData[reviewData_name]
             db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
-            core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-            core_samples_mask[db.core_sample_indices_] = True
             y_pred = db.labels_.astype(np.int)
-            colors = [spectral[i] for i in y_pred]
         elif algorithm == "DBSCAN - all reviews":
             dstMat = neuronData
             db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
-            core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
-            core_samples_mask[db.core_sample_indices_] = True
             y_pred = db.labels_.astype(np.int)
-            colors = [spectral[i] for i in y_pred]
-
+        elif algorithm == "AgglomerativeClustering - all reviews":
+            dstMat = neuronData
+            db = cluster.AgglomerativeClustering(n_clusters=n_clusters,affinity="precomputed",linkage="average").fit(dstMat)
+            y_pred = db.labels_.astype(np.int)
+        elif algorithm == "Positive-Negative neuron clustering (LSTM's predictions)":
+            y_pred = neuronData
             
-        #elif algorithm == "AgglomerativeClustering - all reviews":
-    
+        colors = [spectral[i] for i in y_pred]
 
 
     return y_pred, colors, spectral
@@ -123,7 +121,8 @@ def get_cluster_algorithms():
     return (["MiniBatchKMeans - selected gate",
             "DBSCAN - selected review",
             "DBSCAN - all reviews",
-            "AgglomerativeClustering - all reviews"
+            "AgglomerativeClustering - all reviews",
+            "Positive-Negative neuron clustering (LSTM's predictions)"
            ], ["MiniBatchKMeans","SpectralClustering","Ward"])
 
     

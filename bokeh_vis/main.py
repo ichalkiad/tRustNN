@@ -60,7 +60,7 @@ def get_clustering_selections(algorithms_neurons,algorithms_data):
 
     algorithm_select_neuron = Select(value="MiniBatchKMeans - selected gate",title="Select clustering option for neurons:",width=200, options=algorithms_neurons)
     algorithm_select_data = Select(value="MiniBatchKMeans",title="Select clustering option for raw data:",width=200, options=algorithms_data)
-    cluster_slider = Slider(title="Number of clusters - for kMeans",value=2.0,start=2.0,end=10.0,step=1,width=400)
+    cluster_slider = Slider(title="Number of clusters (use in kmeans,hierarchical clustering)",value=2.0,start=2.0,end=10.0,step=1,width=400)
 
     return (algorithm_select_neuron,algorithm_select_data,cluster_slider)
 
@@ -124,10 +124,13 @@ def update_source(attrname, old, new):
     algorithm_cl_data = clustering_selections[1].value
     n_clusters = int(clustering_selections[2].value)
 
-    if algorithm_cl_neurons=="DBSCAN - all reviews":
+    if algorithm_cl_neurons=="DBSCAN - all reviews" or algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
         neuronData = neuronWords_data_full
+    elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
+        neuronData = posNeg_predictionLabel
     else:
         neuronData = neuronWords_data
+    
     cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
     
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors,w=mostActiveWords)
@@ -166,7 +169,7 @@ LRP=None
 with open(load_dir+"LRP.pickle","rb") as handle:
     (LRP,predicted_tgs) = _pickle.load(handle)
 with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
-        neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data = _pickle.load(f)
+        neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = _pickle.load(f)
 mostActiveWords = get_mostActiveWords(neuronWords_data_fullTestSet)
         
 #Get preset buttons selections
