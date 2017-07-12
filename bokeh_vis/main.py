@@ -60,9 +60,8 @@ def get_projection_selections(algorithms):
 
     algorithm_select = Select(value="PCA",title="Select projection algorithm:",width=200, options=algorithms)
     knn_slider = Slider(title="Number of neighbors",value=5.0,start=5.0,end=30.0,step=1,width=200)
-    dim_slider = Slider(title="Number of dimensions",value=2,start=2,end=3,step=1,width=200)
     
-    return (algorithm_select,knn_slider,dim_slider)
+    return (algorithm_select,knn_slider)
 
 
 def get_rawText_data(rawInput_selections,keys_raw,data_raw):
@@ -84,9 +83,16 @@ def get_rawText_data(rawInput_selections,keys_raw,data_raw):
     return np.transpose(np.array(data)),np.array(words)
 
 
+"""
+-------------------------------------------------------------------------------------------------------
+                                  UPDATE SOURCE
+-------------------------------------------------------------------------------------------------------
+"""
+
+
 def update_source(attrname, old, new):
     #As sources are currenty created, only 2-dim projections are visualized!!!!!!!
-    
+
     layer_value = gate_selections[0].value
     gate_value  = gate_selections[1].value
     
@@ -95,17 +101,19 @@ def update_source(attrname, old, new):
     #update dimension reduction source
     algorithm = projection_selections[0].value
     knn = int(projection_selections[1].value)
-    dimensions = int(projection_selections[2].value)
-    x_pr,performance_metric = dim_reduction.project(x, algorithm, knn, dimensions, labels)
+    x_pr,performance_metric = dim_reduction.project(x, algorithm, knn, labels)
 
     
     #update clustering 
     algorithm_cl_neurons = clustering_selections[0].value
     algorithm_cl_data = clustering_selections[1].value
     n_clusters = int(clustering_selections[2].value)
-    
-    cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData_jsons=neuronWords_jsons,test_data_json="test_data_input.json",load_dir=load_dir)
-    print(neuronWords_jsons)
+
+    if algorithm_cl_neurons=="DBSCAN - all reviews":
+        neuronData = neuronWords_data_full
+    else:
+        neuronData = neuronWords_data
+    cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
     
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
     if performance_metric!=(None,None):
@@ -116,13 +124,9 @@ def update_source(attrname, old, new):
         
     #update raw input 
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
-    X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, dimensions, labels=labels)
-
-    ###FIX HERE!!! MAKE INDEPENDENT OF ,algorithm_cl_neurons,
-    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data)
+    X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, labels=labels)
+    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"MiniBatchKMeans - selected gate",n_clusters,algorithm_data=algorithm_cl_data)
     rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
-    
-    
     color_dict = get_wc_colourGroups(rawInput_source)
     wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
@@ -147,7 +151,7 @@ LRP=None
 with open(load_dir+"LRP.pickle","rb") as handle:
     (LRP,predicted_tgs) = _pickle.load(handle)
 with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
-        neuronWords_data_fullTestSet,neuronWords_jsons = _pickle.load(f)
+        neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data = _pickle.load(f)
 
         
 #Get preset buttons selections
@@ -157,7 +161,7 @@ gate_selections = get_selections(keys)
 gate_inputs = widgetbox(gate_selections[0],gate_selections[1])
 #Dimensionality reduction
 projection_selections = get_projection_selections(dim_reduction.get_dimReduction_algorithms())
-projection_inputs = widgetbox(projection_selections[0],projection_selections[1],projection_selections[2])
+projection_inputs = widgetbox(projection_selections[0],projection_selections[1])
 #Clustering
 algorithm_neurons,algorithm_data = clustering.get_cluster_algorithms()
 clustering_selections = get_clustering_selections(algorithm_neurons,algorithm_data)
@@ -175,7 +179,7 @@ tools = "pan,wheel_zoom,box_zoom,reset,hover"
 #Dimensionality reduction
 labels = None # LOAD GROUND TRUTH OR NET-ASSIGNED LABELS??
 data_pr = data[gate_selections[0].value][gate_selections[1].value]
-X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, n_components=2, labels=labels)
+X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, labels=labels)
 X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[2].value),algorithm_data=clustering_selections[1].value)
 proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors))
 project_plot = figure(title=projection_selections[0].value + performance_metric[0] + performance_metric[1],tools=tools)
@@ -186,7 +190,7 @@ project_plot.yaxis.axis_label = 'Dim 2'
 
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
-X_w2v, performance_metric_w2v = dim_reduction.project(text_data, "PCA", n_neighbors=10, n_components=2, labels=labels)
+X_w2v, performance_metric_w2v = dim_reduction.project(text_data, "PCA", n_neighbors=10, labels=labels)
 w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[2].value),algorithm_data=clustering_selections[1].value)
 rawInput_source = ColumnDataSource(dict(x=X_w2v[:,0],y=X_w2v[:,1],z=w2v_colors,w=text_words))
 

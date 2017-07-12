@@ -80,7 +80,7 @@ def clustering(X, algorithm, n_clusters):
 
 
 
-def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neuronData_jsons=None,test_data_json=None,load_dir=None):
+def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neuronData=None):
 
     spectral = np.hstack([Spectral6] * 20)
     #keep only review name
@@ -94,15 +94,22 @@ def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neur
         colors = [spectral[i] for i in y_pred]
     else:
         if algorithm == "DBSCAN - selected review":
-            reviewData_name = [s for s in neuronData_jsons if review_part in s][0]
-            dstMat = get_DstMatrix_singleReview(load_dir+reviewData_name,load_dir+test_data_json,review)
+            reviewData_name = [s for s in list(neuronData.keys()) if review_part in s][0]
+            dstMat = neuronData[reviewData_name]
             db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
             core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
             core_samples_mask[db.core_sample_indices_] = True
             y_pred = db.labels_.astype(np.int)
             colors = [spectral[i] for i in y_pred]
+        elif algorithm == "DBSCAN - all reviews":
+            dstMat = neuronData
+            db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
+            core_samples_mask = np.zeros_like(db.labels_, dtype=bool)
+            core_samples_mask[db.core_sample_indices_] = True
+            y_pred = db.labels_.astype(np.int)
+            colors = [spectral[i] for i in y_pred]
+
             
-        #elif algorithm == "DBSCAN - all reviews":
         #elif algorithm == "AgglomerativeClustering - all reviews":
     
 

@@ -10,6 +10,21 @@ import json
 import sys
 import re
 import _pickle
+import gensim
+
+def get_completeNeuronActDst(neuronWords_data_fullTestSet):
+
+    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
+    w2v   = dict(zip(model.index2word, model.syn0))
+
+    keys = list(neuronWords_data_fullTestSet.keys())
+
+    dstMat = np.zeros((len(keys),len(keys)))
+    for i in range((len(keys))):
+        for j in range(i,len(keys)):
+                 dstMat[i,j] = neuron_distance(neuron1=list(neuronWords_data_fullTestSet[keys[i]]),neuron2=list(neuronWords_data_fullTestSet[keys[j]]),w2v=w2v)
+    
+    return dstMat
 
 def get_completeNeuronAct_data(save_dir,neuronWords_jsons):
 
@@ -28,20 +43,25 @@ def get_completeNeuronAct_data(save_dir,neuronWords_jsons):
 
     return nw_data        
         
-def neuron_value(test_data_json,review,neuron):
-    
-    keys_test,data_test = data_format.get_data(test_data_json)
-    kkeys = list(data_test[review].keys())
-    kdata = data_test[review]
-    val = 0.0
-    for w in neuron:
-        val = val + np.array(list(kdata[w]))
+def neuron_value(test_data_json,review,neuron,w2v):
 
-    
+    if w2v==None:
+        keys_test,data_test = data_format.get_data(test_data_json)
+        kkeys = list(data_test[review].keys())
+        kdata = data_test[review]
+        val = 0.0
+        for w in neuron:
+            val = val + np.array(list(kdata[w]))
+    else:
+        val = 0.0
+        for w in neuron:
+            if w in w2v:
+                val = val + np.array(w2v[w])
+
     return np.array(val).sum()/len(neuron)
 
 
-def neuron_distance(test_data_json,review,neuron1,neuron2):
+def neuron_distance(test_data_json=None,review=None,neuron1=[],neuron2=[],w2v=None):
 # neuron1, neuron2 are given as a list of words that trigger them most
     
     n1_n2 = [item for item in neuron1 if item not in neuron2]
@@ -50,9 +70,9 @@ def neuron_distance(test_data_json,review,neuron1,neuron2):
     if set(neuron1) == set(neuron2):
         return 0.0
     if (len(n1_n2)>=1 and len(n2_n1)>=1):
-        a = neuron_value(test_data_json,review,neuron1)
-        b = neuron_value(test_data_json,review,neuron2)
-        return a-b
+        a = neuron_value(test_data_json,review,neuron1,w2v)
+        b = neuron_value(test_data_json,review,neuron2,w2v)
+        return abs(a-b)
     else:
     #return arbitrary large value
         return 1000
@@ -241,6 +261,7 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
 
     LRP = dict()
     neuronWords_jsons = []
+    neuronWords_data = dict()
     
     keys_test,data_test = data_format.get_data(test_data_json)
     for k in keys_test:
@@ -253,14 +274,16 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          
          get_reviewRelevant_cells(lrp_fc,k,save_dir,topN)
          review_filename, _ = get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN)
+         dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
          neuronWords_jsons.append(review_filename)
-         
+         neuronWords_data[review_filename] = dstMat
          w = dict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
          LRP[k] = w
 
     neuronWords_data_fullTestSet = get_completeNeuronAct_data(save_dir,neuronWords_jsons)
+    neuronWords_data_full = get_completeNeuronActDst(neuronWords_data_fullTestSet)
     with open(save_dir+"neuronWords_data_fullTestSet.pickle", 'wb') as f:
-        _pickle.dump((neuronWords_data_fullTestSet,neuronWords_jsons), f)
+        _pickle.dump((neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data), f)
 
     
     return LRP
