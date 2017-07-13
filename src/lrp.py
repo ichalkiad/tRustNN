@@ -179,7 +179,8 @@ def get_reviewRelevant_cells(lrp_fc,review,save_dir,topN=5):
             json.dump({review:idx}, f)
 
      return idx
-    
+
+ 
 def get_gate(W,b,in_concat):
 # in_concat is concatenation(current_input, input_prev_timestep)
 # b should correspond to specific gate bias
@@ -312,9 +313,9 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
         
 def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
 
-    LRP = dict()
+    LRP = collections.OrderedDict()
     neuronWords_jsons = []
-    neuronWords_data = dict()
+    neuronWords_data = collections.OrderedDict()
    
     
     keys_test,data_test = data_format.get_data(test_data_json)
@@ -333,7 +334,7 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
          neuronWords_jsons.append(review_filename)
          neuronWords_data[review_filename] = dstMat
-         w = dict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
+         w = collections.OrderedDict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
          LRP[k] = w
 
     posNeg_predictionLabel = get_PosNegPredictionLabel(reviewLRP_data)
