@@ -9,9 +9,9 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
 # data="lstm" for LSTM data or "all" for LSTM + FC layer data
 # input_files has to be a list even if it is a single file
     
-    lstm_outputs = collections.OrderedDict()
+#    lstm_outputs = collections.OrderedDict()
     lstm_states  = collections.OrderedDict()
-    lstm_hidden  = collections.OrderedDict()  ## same as outputs, but latter includes the unncessary zeros at the end
+    lstm_hidden  = collections.OrderedDict()  ## same as lstm_outputs, but latter includes the unncessary zeros at the end
     fc_outputs   = collections.OrderedDict()
     
     with model.session.as_default():
