@@ -58,8 +58,8 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
     if save_mode=="json":
         with open(save_dir+"model_internals_fc.json", 'w') as f:
             json.dump(fc_outputs, f)
-        with open(save_dir+"model_internals_lstm_outputs.json", 'w') as f:
-            json.dump(lstm_outputs, f)
+        #with open(save_dir+"model_internals_lstm_outputs.json", 'w') as f:
+        #    json.dump(lstm_outputs, f)
         with open(save_dir+"model_internals_lstm_hidden.json", 'w') as f:
             json.dump(lstm_hidden, f)
         with open(save_dir+"model_internals_lstm_states.json", 'w') as f:
@@ -67,8 +67,8 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
     elif save_mode=="pickle":
         with open(save_dir+"model_internals_fc.pickle", 'wb') as f:
             _pickle.dump(fc_outputs, f)
-        with open(save_dir+"model_internals_lstm_outputs.pickle", 'wb') as f:
-            _pickle.dump(lstm_outputs, f)
+        #with open(save_dir+"model_internals_lstm_outputs.pickle", 'wb') as f:
+        #    _pickle.dump(lstm_outputs, f)
         with open(save_dir+"model_internals_lstm_hidden.pickle", 'wb') as f:
             _pickle.dump(lstm_hidden, f)
         with open(save_dir+"model_internals_lstm_states.pickle", 'wb') as f:

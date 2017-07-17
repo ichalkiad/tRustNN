@@ -57,7 +57,7 @@ def config():
     embedding_dim = 300
     ckp_path = None #"./sacred_models/ckp/"
     internals = "all"    
-    save_mode = "json"
+    save_mode = "pickle"
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -169,13 +169,17 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     print("Exported internals...")
     
     d = imdb_pre.get_input_json(input_files)
-    with open(save_dir+"test_data_input.json", "w") as f:
-        json.dump(d, f)
+    if save_mode=="pickle":
+        with open(save_dir+"test_data_input.pickle", "wb") as f:
+            _pickle.dump(d,f)
+    else:
+        with open(save_dir+"test_data_input.json", "w") as f:
+            json.dump(d, f)
     print("Exported test data dictionary...")
 
     predicted_tgs = model.predict_label(feed)
 
-    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input.json",save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
+    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
     with open(save_dir+"LRP.pickle","wb") as handle:
         _pickle.dump((LRP,predicted_tgs),handle)
     print("Finished with LRP and related data...")
