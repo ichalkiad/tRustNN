@@ -10,6 +10,33 @@ import random
 import sys
 import re
 
+
+def get_input_json(filenames,w2v=None):
+
+    if w2v==None:
+        # Load Google's pre-trained Word2Vec model.
+        model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
+        w2v   = dict(zip(model.index2word, model.syn0))
+    
+    #Initialize preprocessor
+    preprocessor = we.NLTKPreprocessor()
+    vectorizer   = we.TfidfEmbeddingVectorizer(w2v)
+
+    X_tokenized  = preprocessor.transform(filenames)
+    vectorizer.fit(X_tokenized)
+    X_w2v = vectorizer.transform(X_tokenized)
+
+    data = collections.OrderedDict()
+    for i in range(len(filenames)):
+        review = collections.OrderedDict()
+        for j in range(len(X_tokenized[i])):
+            review[X_tokenized[i][j]] = X_w2v[i][j].tolist()
+        data[filenames[i]] = review
+        
+    return data
+
+
+
 def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
 
     lengthsTr = np.max([len(s) for s in trainX])
@@ -42,7 +69,7 @@ def remove_unk(x,n_words):
 
 
 
-def extract_features_w2v(filenames_train_valid,filenames_test,seed):
+def extract_features_w2v(filenames_train_valid,filenames_test,seed,save_test=None):
     
     random.shuffle(filenames_train_valid)
     random.shuffle(filenames_test)
@@ -74,7 +101,14 @@ def extract_features_w2v(filenames_train_valid,filenames_test,seed):
     valid_X_w2v = vectorizer.transform(valid_X_tokenized)
     test_X_w2v  = vectorizer.transform(test_X_tokenized)
 
-    return train_X_w2v,valid_X_w2v,test_X_w2v,filenames_train,filenames_valid,filenames_test
+    test_dict = None
+    if save_test!=None:
+        test_dict = get_input_json(filenames_test,w2v)
+
+    del w2v
+    del model
+    
+    return train_X_w2v,valid_X_w2v,test_X_w2v,filenames_train,filenames_valid,filenames_test,test_dict
 
 
 
@@ -165,33 +199,10 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
     return trainY,validY,testY
 
 
-def get_input_json(filenames):
 
-    # Load Google's pre-trained Word2Vec model.
-    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
-    w2v   = dict(zip(model.index2word, model.syn0))
-    
-    #Initialize preprocessor
-    preprocessor = we.NLTKPreprocessor()
-    vectorizer   = we.TfidfEmbeddingVectorizer(w2v)
+def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None,save_test=None):
 
-    X_tokenized  = preprocessor.transform(filenames)
-    vectorizer.fit(X_tokenized)
-    X_w2v = vectorizer.transform(X_tokenized)
-
-    data = collections.OrderedDict()
-    for i in range(len(filenames)):
-        review = collections.OrderedDict()
-        for j in range(len(X_tokenized[i])):
-            review[X_tokenized[i][j]] = X_w2v[i][j].tolist()
-        data[filenames[i]] = review
-        
-    return data
-
-
-def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None):
-
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test = extract_features_w2v(filenames_train_valid,filenames_test,seed)
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict = extract_features_w2v(filenames_train_valid,filenames_test,seed,save_test)
     trainX,validX,testX,maxlen = pad_sequences(trainX, validX, testX, value=0.)
     trainX = np.array(trainX)
     validX = np.array(validX)
@@ -199,4 +210,4 @@ def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,d
     
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
-    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen
+    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen,test_dict

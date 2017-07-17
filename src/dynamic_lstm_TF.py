@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames_train_valid,filenames_test
+from IMDB_dataset.textData import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -124,11 +124,26 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
 @ex.automain
 def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode):
-    
+
+    save_dir = save_path+run_id+"/"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+   
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary,save_test="save_test")
 
+    d = test_dict
+    if save_mode=="pickle":
+        with open(save_dir+"test_data_input.pickle", "wb") as f:
+            _pickle.dump(d,f)
+    else:
+        with open(save_dir+"test_data_input.json", "w") as f:
+            json.dump(d, f)
+    print("Exported test data dictionary...")
+
+    
     """
     with open('trainValidtest.pickle','rb') as handle:
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = _pickle.load(handle)
@@ -139,15 +154,10 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
 
-    
     print("Evaluating trained model on test set...")
     score = model.evaluate(testX,testY,batch_size=maxlen)
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
     
-    
-    save_dir = save_path+run_id+"/"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
     
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
@@ -164,28 +174,18 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     """
     feed = testX
     input_files = filenames_test_sfd
-    
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
     print("Exported internals...")
-    
-    d = imdb_pre.get_input_json(input_files)
-    if save_mode=="pickle":
-        with open(save_dir+"test_data_input.pickle", "wb") as f:
-            _pickle.dump(d,f)
-    else:
-        with open(save_dir+"test_data_input.json", "w") as f:
-            json.dump(d, f)
-    print("Exported test data dictionary...")
 
-    predicted_tgs = model.predict_label(feed)
-
-    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
-    with open(save_dir+"LRP.pickle","wb") as handle:
-        _pickle.dump((LRP,predicted_tgs),handle)
-    print("Finished with LRP and related data...")
-    
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
-    print("Saved model...now exiting...")
+    print("Saved model...")    
+    
+    predicted_tgs = model.predict_label(feed)
+    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
+    with open(save_dir+"LRP.pickle","wb") as handle:
+        _pickle.dump((LRP,predicted_tgs),handle)
+    print("Finished with LRP and related data...now exiting...")
+    
 
