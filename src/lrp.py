@@ -9,7 +9,7 @@ from lrp_linear import lrp_linear as lrp_linear
 import json
 import sys
 import re
-import _pickle
+import pickle
 import gensim
 
 def get_reviewLRP_data(i,predictions,lrp_neurons):
@@ -341,7 +341,7 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
     neuronWords_data_fullTestSet = get_completeNeuronAct_data(save_dir,neuronWords_jsons)
     neuronWords_data_full = get_completeNeuronActDst(neuronWords_data_fullTestSet)
     with open(save_dir+"neuronWords_data_fullTestSet.pickle", 'wb') as f:
-        _pickle.dump((neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel), f)
+        pickle.dump((neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel), f)
     print("Saved auxiliary data dictionaries and distance matrices...")
 
     
