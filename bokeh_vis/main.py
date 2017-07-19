@@ -128,6 +128,8 @@ def update_source(attrname, old, new):
         neuronData = neuronWords_data_full
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         neuronData = posNeg_predictionLabel
+    elif algorithm_cl_neurons=="Internal state clustering (LSTM's outputs)":
+        neuronData = lstm_hidVal
     else:
         neuronData = neuronWords_data
     
@@ -171,7 +173,10 @@ with open(load_dir+"LRP.pickle","rb") as handle:
 with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
         neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = _pickle.load(f)
 mostActiveWords = get_mostActiveWords(neuronWords_data_fullTestSet)
-        
+with open(load_dir+"test_model_internals_lstm_states.pickle","rb") as handle:
+    lstm_hidden = _pickle.load(handle)
+lstm_hidVal = np.array(lstm_hidden.values())
+
 #Get preset buttons selections
         
 #LSTM gates
@@ -189,15 +194,29 @@ rawInput_selections = get_rawInput_selections()
 rawInput_inputs = widgetbox(rawInput_selections)
 
 
-hover = HoverTool()
-hover.tooltips = [("Cell", "$index"),("(x,y)", "($x,$y)")]
-hover.mode = 'mouse'
-tools = "pan,wheel_zoom,box_zoom,reset,hover"
-
 hover_input = HoverTool()
-hover_input.tooltips = [("Cell", "$index"),("Activating words","@w")]
+"""
+<div>
+            <img
+                src="@imgs" height="42" alt="@imgs" width="42"
+                style="float: left; margin: 0px 15px 15px 0px;"
+                border="2"
+            ></img>
+        </div>
+"""
+hover_input.tooltips = """
+    <div>
+        <div>
+            <span style="font-size: 17px; font-weight: bold;">@w</span>
+        </div>
+        <div>
+            <span style="font-size: 15px; color: #966;">Cell No. : $index</span>
+        </div>
+    </div>
+    """
+
 hover_input.mode = 'mouse'
-tools_input = "pan,wheel_zoom,box_zoom,reset"
+tools = "pan,wheel_zoom,box_zoom,reset"
 
 
 #Dimensionality reduction
@@ -219,12 +238,6 @@ w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,alg
 rawInput_source = ColumnDataSource(dict(x=X_w2v[:,0],y=X_w2v[:,1],z=w2v_colors,w=text_words))
 
 
-
-"""
-rawInput_plot = figure(title=clustering_selections[0].value+" - "+rawInput_selections.value,tools=tools_input)
-rawInput_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=rawInput_source, legend=None)
-rawInput_plot.add_tools(hover_input)
-"""
 
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source)

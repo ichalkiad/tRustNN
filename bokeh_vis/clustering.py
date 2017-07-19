@@ -108,7 +108,10 @@ def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neur
             y_pred = db.labels_.astype(np.int)
         elif algorithm == "Positive-Negative neuron clustering (LSTM's predictions)":
             y_pred = neuronData
-            
+        elif algorithm == "Internal state clustering (LSTM's outputs)":
+            x_cl, y_pred = clustering(data, algorithm_data, n_clusters)
+
+
         colors = [spectral[i] for i in y_pred]
 
 
@@ -122,8 +125,9 @@ def get_cluster_algorithms():
             "DBSCAN - selected review",
             "DBSCAN - all reviews",
             "AgglomerativeClustering - all reviews",
-            "Positive-Negative neuron clustering (LSTM's predictions)"
-           ], ["MiniBatchKMeans","SpectralClustering","Ward"])
+            "Positive-Negative neuron clustering (LSTM's predictions)",
+             "Internal state clustering (LSTM's outputs)"],
+            ["MiniBatchKMeans","SpectralClustering","Ward"])
 
     
 

@@ -43,19 +43,19 @@ def config():
     tensorboard_verbose = 3
     show_metric = True
     batch_size = 1
-    save_path = "./sacred_models/"
+    save_path = "./testLSTM1/"  #"./sacred_models/"
     tensorboard_dir = "./sacred_models/tf_logs/"
     run_id = "runIDstandalone"
     n_words = 10000
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
-    ckp_path = "./sacred_models/runID" #+ run_id
+    ckp_path = "./sacred_models/" + run_id
     internals = "all"    
     feed_input_json = './bokeh_vis/static/test_data_input.json'
     internal_fc_json = "test_standalone_model_internals_fc.json"
     internal_hidden_json = "test_standalone_model_internals_lstm_hidden.json"
     internal_state_json = "test_standalone_model_internals_lstm_states.json"
-    save_mode = "json"
+    save_mode = "pickle"
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -110,7 +110,7 @@ def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,
     if os.path.isfile(save_dir+"LRP.pickle")==False: 
 
         """
-        _,_,testX,_,_,_,_,_,filenames_test_sfd = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
+        _,_,testX,_,_,_,_,_,filenames_test_sfd,_ = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
         """
         with open('trainValidtest.pickle','rb') as handle:
             (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = _pickle.load(handle)
