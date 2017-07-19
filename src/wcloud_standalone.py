@@ -15,7 +15,7 @@ import lrp
 import os
 import heatmap
 from dynamic_lstm_TF import build_network
-import _pickle
+import pickle
 import IMDB_dataset.imdb_preprocess as imdb_pre
 from wordcloud import WordCloud
 import nltk
@@ -113,7 +113,7 @@ def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,
         _,_,testX,_,_,_,_,_,filenames_test_sfd,_ = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
         """
         with open('trainValidtest.pickle','rb') as handle:
-            (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = _pickle.load(handle)
+            (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = pickle.load(handle)
         
         model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,testX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
         sess = model.session 
@@ -132,7 +132,7 @@ def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,
         """
     else:
         with open(save_dir+"LRP.pickle","rb") as handle:
-            (LRP,predicted_tgs) = _pickle.load(handle)
+            (LRP,predicted_tgs) = pickle.load(handle)
         
 
     kkeys = list(LRP.keys())

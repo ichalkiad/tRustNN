@@ -1,7 +1,7 @@
 from sklearn.model_selection import train_test_split
 from tflearn.data_utils import to_categorical
 import wordEmbedder as we
-import _pickle as cPickle
+import pickle
 from pathlib import Path
 import numpy as np
 import collections
@@ -119,7 +119,7 @@ def extract_features(filenames_train_valid,filenames_test,seed,n_words,dictionar
 
 
     with open(dictionary, 'rb') as handle:
-         d = cPickle.load(handle)
+         d = pickle.load(handle)
 
     X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),
                                                           test_size=0.1, random_state=seed)
