@@ -1,6 +1,6 @@
 import numpy as np
 import json
-import _pickle
+import pickle
 from collections import defaultdict
 
 def return_keys(json_file):
@@ -10,7 +10,7 @@ def return_keys(json_file):
             data = json.load(data_file)
     elif "pickle" in json_file:
         with open(json_file,"rb") as data_file:    
-            data = _pickle.load(data_file)
+            data = pickle.load(data_file)
 
     return data.keys()
 
@@ -22,7 +22,7 @@ def return_JSONcontent(keys,json_file):
             data = json.load(data_file)
     elif "pickle" in json_file:
         with open(json_file,"rb") as data_file:    
-            data = _pickle.load(data_file)
+            data = pickle.load(data_file)
 
     for k in keys:
         if isinstance(data[k],dict):
