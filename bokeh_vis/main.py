@@ -10,7 +10,7 @@ import clustering
 import random
 import sys
 import os
-import _pickle
+import pickle
 from bokeh.models.glyphs import ImageURL
 
 src_path = os.path.abspath("./src/")
@@ -169,13 +169,12 @@ keys_raw,data_raw = data_format.get_data(load_dir+"test_data_input.json")
 #Load auxiliary data
 LRP=None
 with open(load_dir+"LRP.pickle","rb") as handle:
-    (LRP,predicted_tgs) = _pickle.load(handle)
+    (LRP,predicted_tgs) = pickle.load(handle)
 with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
-        neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = _pickle.load(f)
+        neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = pickle.load(f)
 mostActiveWords = get_mostActiveWords(neuronWords_data_fullTestSet)
-with open(load_dir+"test_model_internals_lstm_states.pickle","rb") as handle:
-    lstm_hidden = _pickle.load(handle)
-lstm_hidVal = np.array(lstm_hidden.values())
+_,lstm_hidden = data_format.get_data(load_dir+"test_standalone_model_internals_lstm_hidden.json")
+lstm_hidVal = np.vstack(np.array(list(lstm_hidden.values())))
 
 #Get preset buttons selections
         
@@ -245,7 +244,7 @@ wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dic
 img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=400)
 ydr = Range1d(start=0, end=400)
-wc_plot = Plot(title=None, x_range=xdr, y_range=ydr, plot_width=500, plot_height=460, min_border=0)
+wc_plot = Plot(title=None, x_range=xdr, y_range=ydr, plot_width=500, plot_height=500, min_border=0)
 image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left")
 wc_plot.add_glyph(img_source, image)
 
@@ -261,7 +260,7 @@ for attr in clustering_selections:
 rawInput_selections.on_change('value', update_source)
 
 
-gp = gridplot([[project_plot, wc_plot],[row(gate_inputs, projection_inputs,clustering_inputs, rawInput_inputs)]], responsive=True)
+gp = gridplot([[project_plot, wc_plot],[row(gate_inputs)],[row(rawInput_input)],[row(projection_inputs,clustering_inputs,)]], responsive=True)
 curdoc().add_root(gp)
 curdoc().title = "tRustNN"
 
