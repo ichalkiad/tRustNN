@@ -163,10 +163,10 @@ def get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN=5):
 
      NtoW = invert_dict_nonunique(d)
      
-     with open(save_dir+re.sub('/', '_', k[37:-4])+"_ActCells.json", 'w') as f:
+     with open(save_dir+re.sub('/', '_', k[-18:-4])+"_ActCells.json", 'w') as f:
             json.dump(NtoW, f)
 
-     return re.sub('/', '_', k[37:-4])+"_ActCells.json",NtoW
+     return re.sub('/', '_', k[-18:-4])+"_ActCells.json",NtoW
 
 
  
@@ -175,7 +175,7 @@ def get_reviewRelevant_cells(lrp_fc,review,save_dir,topN=5):
      sorted_LRP = np.argsort(lrp_fc,axis=0,kind='quicksort')
      idx = sorted_LRP[-(topN+1):-1].tolist()
      
-     with open(save_dir+re.sub('/', '_', review[37:-4])+"_lrpCells.json", 'w') as f:
+     with open(save_dir+re.sub('/', '_', review[-18:-4])+"_lrpCells.json", 'w') as f:
             json.dump({review:idx}, f)
 
      return idx
