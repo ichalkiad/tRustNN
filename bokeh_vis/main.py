@@ -1,4 +1,4 @@
-from bokeh.models import ColumnDataSource, HoverTool, Range1d, Plot, LinearAxis, Grid
+from bokeh.models import ColumnDataSource, HoverTool, Range1d, Plot, LinearAxis, Grid, Paragraph
 from bokeh.plotting import figure, show, output_file
 from bokeh.io import output_notebook, show, curdoc
 from bokeh.layouts import row, widgetbox, column, gridplot
@@ -151,7 +151,8 @@ def update_source(attrname, old, new):
     wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
 
-
+    text_banner.text = open(rawInput_selections.value,"r").read()
+    label_banner.text = "POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "NEGATIVE"
         
 """
 ------------------------------------------------------------------------------------------------------------------------
@@ -171,10 +172,11 @@ LRP=None
 with open(load_dir+"LRP.pickle","rb") as handle:
     (LRP,predicted_tgs) = pickle.load(handle)
 with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
-        neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = pickle.load(f)
+    neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = pickle.load(f)
 mostActiveWords = get_mostActiveWords(neuronWords_data_fullTestSet)
 _,lstm_hidden = data_format.get_data(load_dir+"test_standalone_model_internals_lstm_hidden.json")
 lstm_hidVal = np.vstack(np.array(list(lstm_hidden.values())))
+
 
 #Get preset buttons selections
         
@@ -249,6 +251,8 @@ image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_
 wc_plot.add_glyph(img_source, image)
 
 
+text_banner = Paragraph(text=open(rawInput_selections.value,"r").read(), width=1000, height=200)
+label_banner = Paragraph(text="POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "NEGATIVE", width=100, height=30)
 
 #Layout
 for attr in gate_selections:
@@ -260,7 +264,7 @@ for attr in clustering_selections:
 rawInput_selections.on_change('value', update_source)
 
 
-gp = gridplot([[project_plot, wc_plot],[row(gate_inputs)],[row(rawInput_input)],[row(projection_inputs,clustering_inputs,)]], responsive=True)
+gp = gridplot([[project_plot, wc_plot],[row(gate_inputs,projection_inputs,rawInput_inputs)],[row(clustering_inputs,)],[row(text_banner,label_banner)]], responsive=True)
 curdoc().add_root(gp)
 curdoc().title = "tRustNN"
 

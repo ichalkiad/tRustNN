@@ -142,8 +142,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
         with open(save_dir+"test_data_input.json", "w") as f:
             json.dump(d, f)
     print("Exported test data dictionary...")
-
-    
+        
     """
     with open('trainValidtest.pickle','rb') as handle:
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = pickle.load(handle)
