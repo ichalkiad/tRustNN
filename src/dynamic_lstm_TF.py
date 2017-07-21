@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames_train_valid,filenames_test
+from IMDB_dataset.textData_cluster_100 import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -58,7 +58,8 @@ def config():
     ckp_path = None #"./sacred_models/ckp/"
     internals = "all"    
     save_mode = "pickle"
-    
+    n_epoch = 10
+
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
     net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
@@ -123,7 +124,7 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
 
 @ex.automain
-def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode):
+def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode):
 
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
@@ -151,7 +152,7 @@ def train(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metri
     print("Training model...")
     
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
-    model.fit(trainX, trainY, validation_set=(validX, validY), show_metric=show_metric, batch_size=batch_size)
+    model.fit(trainX, trainY, validation_set=(validX, validY), n_epoch=n_epoch, show_metric=show_metric, batch_size=batch_size)
 
     print("Evaluating trained model on test set...")
     score = model.evaluate(testX,testY,batch_size=maxlen)
