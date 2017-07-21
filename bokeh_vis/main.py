@@ -153,7 +153,9 @@ def update_source(attrname, old, new):
     w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"MiniBatchKMeans - selected gate",n_clusters,algorithm_data=algorithm_cl_data)
     rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
     color_dict = get_wc_colourGroups(rawInput_source)
+    print(rawInput_selections.value)
     wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
+    print(wc_filename)
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
 
     text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)

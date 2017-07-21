@@ -99,7 +99,6 @@ def get_wcloud(LRP,k,save_dir,color_dict=None):
      save_filename = re.sub('/', '_', k[-18:-4])+"_word_cloud.png"
      try:
          os.remove(save_dir+save_filename)
-         print("Removed previous wordcloud")
      except OSError:
          pass
      wc.to_file(save_dir+save_filename)
