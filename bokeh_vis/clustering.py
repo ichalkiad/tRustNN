@@ -89,7 +89,7 @@ def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neur
     y_pred = None
     colors = None
     
-    if algorithm == "MiniBatchKMeans - selected gate":        
+    if ((algorithm == "MiniBatchKMeans - selected gate") or (algorithm == "Internal state clustering (LSTM's outputs)")):        
         x_cl, y_pred = clustering(data, algorithm_data, n_clusters)
         colors = [spectral[i] for i in y_pred]
     else:
@@ -108,9 +108,7 @@ def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neur
             y_pred = db.labels_.astype(np.int)
         elif algorithm == "Positive-Negative neuron clustering (LSTM's predictions)":
             y_pred = neuronData
-        elif algorithm == "Internal state clustering (LSTM's outputs)":
-            x_cl, y_pred = clustering(data, algorithm_data, n_clusters)
-
+        
 
         colors = [spectral[i] for i in y_pred]
 
