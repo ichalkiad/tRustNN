@@ -13,6 +13,10 @@ from sklearn import (manifold, datasets, decomposition, ensemble,
         X.flat[::X.shape[1] + 1] += 0.01  # Make X invertible
         X = discriminant_analysis.LinearDiscriminantAnalysis(n_components).fit_transform(X, labels)
 """
+
+#X: [n_features,n_samples]
+
+
 def project(X, algorithm, n_neighbors, labels=None):
 
     n_components = 2

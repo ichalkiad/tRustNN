@@ -53,16 +53,23 @@ def get_selections(keys):
     lstm_layers = [l for l in keys if "lstm" in l]
     select_layer = Select(title="LSTM layer", value="lstm", options=lstm_layers)
 
-    gates = ["input_gate","forget_gate","output_gate"]
-    select_gate = Select(title="Gate", value="input_gate", options=gates)
+    gates = ["IN - what to add on","FORGET - what to drop off","OUT - where to focus on"]
+    select_gate = Select(title="Gate", value="IN - what to add on", options=gates)
+
+    if select_gate.value == "IN - what to add on":
+        select_gate.value = "input_gate"
+    elif select_gate.value == "FORGET - what to drop off":
+        select_gate.value = "forget_gate"
+    elif select_gate.value == "OUT - where to focus on":
+        select_gate.value = "output_gate"
 
     return (select_layer,select_gate)
 
 
 def get_clustering_selections(algorithms_neurons,algorithms_data):
 
-    algorithm_select_neuron = Select(value="MiniBatchKMeans - selected gate",title="Select clustering option for neurons:",width=200, options=algorithms_neurons)
-    algorithm_select_data = Select(value="MiniBatchKMeans",title="Select clustering option for raw data:",width=200, options=algorithms_data)
+    algorithm_select_neuron = Select(value="KMeans - selected gate",title="Select clustering option for neurons:",width=200, options=algorithms_neurons)
+    algorithm_select_data = Select(value="KMeans",title="Select clustering option for raw data:",width=200, options=algorithms_data)
     cluster_slider = Slider(title="Number of clusters (use in kmeans,hierarchical clustering)",value=2.0,start=2.0,end=10.0,step=1,width=400)
 
     return (algorithm_select_neuron,algorithm_select_data,cluster_slider)
@@ -112,6 +119,12 @@ def update_source(attrname, old, new):
    
     layer_value = gate_selections[0].value
     gate_value  = gate_selections[1].value
+    if gate_value == "IN - what to add on":
+        gate_value = "input_gate"
+    elif gate_value == "FORGET - what to drop off":
+        gate_value = "forget_gate"
+    elif gate_value == "OUT - where to focus on":
+        gate_value = "output_gate"
     
     x = data[layer_value][gate_value]
 
@@ -120,15 +133,14 @@ def update_source(attrname, old, new):
     knn = int(projection_selections[1].value)
     x_pr,performance_metric = dim_reduction.project(x, algorithm, knn, labels)
 
-    
     #update clustering 
     algorithm_cl_neurons = clustering_selections[0].value
     algorithm_cl_data = clustering_selections[1].value
     n_clusters = int(clustering_selections[2].value)
 
-    if algorithm_cl_neurons=="Internal state clustering (LSTM's outputs)":
-        x_pr,performance_metric = dim_reduction.project(lstm_hidVal, algorithm, knn, labels)
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(data=lstm_hidVal,algorithm=algorithm_cl_neurons,n_clusters=n_clusters,algorithm_data=algorithm_cl_data,review=None,neuronData=None)
+    if algorithm_cl_neurons=="Internal state clustering (LSTM's outputs)": #####ALSO DO IT PER REVIEW?????????????????
+        x_pr,performance_metric = dim_reduction.project(np.transpose(lstm_hidVal), algorithm, knn, labels)
+        cluster_labels, colors, cl_spectral = clustering.apply_cluster(data=np.transpose(lstm_hidVal),algorithm=algorithm_cl_neurons,n_clusters=n_clusters,algorithm_data=algorithm_cl_data,review=None,neuronData=None)
     elif algorithm_cl_neurons=="DBSCAN - all reviews" or algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
         neuronData = neuronWords_data_full
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
@@ -139,7 +151,9 @@ def update_source(attrname, old, new):
         neuronData = neuronWords_data
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
 
-    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors,w=mostActiveWords)
+    print("Done")
+    
+    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors, w=mostActiveWords)
 
     if performance_metric!=(None,None):
         project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
@@ -150,7 +164,7 @@ def update_source(attrname, old, new):
     #update raw input    
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
     X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, labels=labels)
-    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"MiniBatchKMeans - selected gate",n_clusters,algorithm_data=algorithm_cl_data)
+    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,algorithm_data=algorithm_cl_data)
     rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
     color_dict = get_wc_colourGroups(rawInput_source)
     print(rawInput_selections.value)
@@ -235,7 +249,7 @@ project_plot.add_tools(hover_input)
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
 X_w2v, performance_metric_w2v = dim_reduction.project(text_data, "PCA", n_neighbors=10, labels=labels)
-w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm="MiniBatchKMeans - selected gate",n_clusters=int(clustering_selections[2].value),algorithm_data=clustering_selections[1].value)
+w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[2].value),algorithm_data=clustering_selections[1].value)
 rawInput_source = ColumnDataSource(dict(x=X_w2v[:,0],y=X_w2v[:,1],z=w2v_colors,w=text_words))
 
 
