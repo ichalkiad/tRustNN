@@ -41,6 +41,7 @@ def get_reviewLRP_data(i,predictions,lrp_neurons):
 
 def get_PosNegPredictionLabel(reviewLRP_data):
 
+    """
     max1=-1
     max2=-1
     max3=-1
@@ -50,8 +51,10 @@ def get_PosNegPredictionLabel(reviewLRP_data):
         max2 = max(reviewLRP_data["neg"])
     if reviewLRP_data["neutral"]!=[]:
         max3 = max(reviewLRP_data["neutral"])
-
     neuron_num = max(max1,max2,max3)
+    """
+
+    neuron_num = len(reviewLRP_data["pos"])+len(reviewLRP_data["neg"])+len(reviewLRP_data["neutral"])
     posNeg_predictionLabel = np.zeros((neuron_num,))
 
     for i in range(neuron_num):

@@ -5,7 +5,7 @@ from bokeh.io import curdoc
 from bokeh.layouts import widgetbox, row, column
 from bokeh.models import ColumnDataSource, Select, Slider
 from bokeh.plotting import figure
-from bokeh.palettes import Spectral6
+from bokeh.palettes import Spectral6,d3
 import dim_reduction
 from sklearn import cluster
 from sklearn.neighbors import kneighbors_graph
@@ -84,7 +84,7 @@ def clustering(X, algorithm, n_clusters):
 
 def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neuronData=None):
 
-    spectral = np.hstack([Spectral6] * 20)  #### MORE VARIETY NEEDED????????????????????
+    spectral = np.hstack([Spectral6] * 20)  
     #keep only review name
     if review!=None:
         review_part = review.split('/')[-1][:-4]

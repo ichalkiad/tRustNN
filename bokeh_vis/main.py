@@ -138,22 +138,26 @@ def update_source(attrname, old, new):
     algorithm_cl_data = clustering_selections[1].value
     n_clusters = int(clustering_selections[2].value)
 
-    if algorithm_cl_neurons=="Internal state clustering (LSTM's outputs)": #####ALSO DO IT PER REVIEW?????????????????
+    if algorithm_cl_neurons=="Internal state clustering (LSTM's outputs)":
+        lstm_hidVal = np.array(lstm_hidden[rawInput_selections.value])
         x_pr,performance_metric = dim_reduction.project(np.transpose(lstm_hidVal), algorithm, knn, labels)
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(data=np.transpose(lstm_hidVal),algorithm=algorithm_cl_neurons,n_clusters=n_clusters,algorithm_data=algorithm_cl_data,review=None,neuronData=None)
+        w = [i for i in range(lstm_hidVal.shape[0])]
     elif algorithm_cl_neurons=="DBSCAN - all reviews" or algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
         neuronData = neuronWords_data_full
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
+        w = mostActiveWords
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         neuronData = posNeg_predictionLabel
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
+        w = mostActiveWords
     else:
         neuronData = neuronWords_data
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,algorithm_data=algorithm_cl_data,review=rawInput_selections.value,neuronData=neuronData)
+        w = mostActiveWords
 
-    print("Done")
     
-    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors, w=mostActiveWords)
+    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors, w=w)
 
     if performance_metric!=(None,None):
         project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
@@ -199,10 +203,8 @@ with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
     neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = pickle.load(f)
 mostActiveWords = get_mostActiveWords(neuronWords_data_fullTestSet)
 _,lstm_hidden = data_format.get_data(load_dir+"test_model_internals_lstm_hidden.pickle")
-lstm_hidVal = np.vstack(np.array(list(lstm_hidden.values())))
 
-
-#Get preset buttons selections
+#Get preset buttons' selections
         
 #LSTM gates
 gate_selections = get_selections(keys)
@@ -213,7 +215,7 @@ projection_inputs = widgetbox(projection_selections[0],projection_selections[1])
 #Clustering
 algorithm_neurons,algorithm_data = clustering.get_cluster_algorithms()
 clustering_selections = get_clustering_selections(algorithm_neurons,algorithm_data)
-clustering_inputs = widgetbox(clustering_selections[0],clustering_selections[1],clustering_selections[2])
+#clustering_inputs = widgetbox(clustering_selections[0],clustering_selections[1],clustering_selections[2])
 #Raw input clustering
 rawInput_selections = get_rawInput_selections()
 rawInput_inputs = widgetbox(rawInput_selections)
@@ -269,6 +271,15 @@ text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selecti
 text_banner = Paragraph(text=open(text_src,"r").read(), width=1000, height=200)
 label_banner = Paragraph(text="POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "NEGATIVE", width=100, height=30)
 
+text_0 = Paragraph(text="Clustering options:", width=1000, height=40)
+text_1 = Paragraph(text="KMeans: Clusters neurons based on their gate values after training.", width=1000, height=30)
+text_2 = Paragraph(text="DBSCAN - selected review: Clusters neurons based on how related their most activating words are. List of activating words generated from seleceted review.", width=1000, height=30)
+text_3 = Paragraph(text="DBSCAN - all reviews: Clusters neurons based on how related their most activating words are. List of activating words generated from all reviews.", width=1000, height=30)
+text_4 = Paragraph(text="AgglomerativeClustering - all reviews: Hierarchical clustering of neurons based on how related their most activating words are. List of activating words generated from all reviews.", width=1000, height=30)
+text_5 = Paragraph(text="Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative.", width=1000, height=30)
+text_6 = Paragraph(text="Internal state clustering - selected review: Clusters representation of input review at every timestep as learned by the LSTM layer.", width=1000, height=70)
+text_set = widgetbox(text_0,text_1,text_2,text_3,text_4,text_5,text_6)
+
 #Layout
 for attr in gate_selections:
     attr.on_change('value', update_source)
@@ -279,7 +290,7 @@ for attr in clustering_selections:
 rawInput_selections.on_change('value', update_source)
 
 
-gp = gridplot([[project_plot, wc_plot],[row(gate_inputs,projection_inputs,rawInput_inputs)],[row(clustering_inputs,)],[row(text_banner,label_banner)]], responsive=True)
+gp = gridplot([[project_plot, wc_plot],[row(gate_inputs,projection_inputs,rawInput_inputs)],[row(text_set)],[row(clustering_selections[0]),row(clustering_selections[1],clustering_selections[2])],[row(text_banner,label_banner)]], responsive=True)
 curdoc().add_root(gp)
 curdoc().title = "tRustNN"
 
