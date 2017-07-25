@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster_100 import filenames_train_valid,filenames_test
+from IMDB_dataset.textData import filenames_train_valid,filenames_test
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -59,10 +59,11 @@ def config():
     internals = "all"    
     save_mode = "pickle"
     n_epoch = 10
-
+    n_test_samples = 50 # -1 for whole test set
+    
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
-    net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
+    net_arch['lstm']       = {'n_units':10, 'activation':'tanh', 'inner_activation':'sigmoid',
                               'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
                               'return_seq':True, 'return_state':True, 'initial_state':None,
                               'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
@@ -124,18 +125,22 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
 
 @ex.automain
-def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode):
+def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode,n_test_samples):
 
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-   
+    test_idx = np.random.randint(0,len(filenames_test),n_test_samples)
+    filenames_test_p = []
+    for i in test_idx:
+        filenames_test_p.append(filenames_test[i])
+    
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary,save_test="save_test")
-
-    d = test_dict
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test_p,n_words,dictionary,save_test="save_test")
+    
+    d = test_dict        
     if save_mode=="pickle":
         with open(save_dir+"test_data_input.pickle", "wb") as f:
             pickle.dump(d,f)
@@ -143,8 +148,8 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
         with open(save_dir+"test_data_input.json", "w") as f:
             json.dump(d, f)
     print("Exported test data dictionary...")
-        
-    """
+    """ 
+    
     with open('trainValidtest.pickle','rb') as handle:
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = pickle.load(handle)
     """
@@ -153,7 +158,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), n_epoch=n_epoch, show_metric=show_metric, batch_size=batch_size)
-
+    
     print("Evaluating trained model on test set...")
     score = model.evaluate(testX,testY,batch_size=maxlen)
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
@@ -176,7 +181,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     input_files = filenames_test_sfd
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
     print("Exported internals...")
-
+    
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
