@@ -337,7 +337,7 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
          neuronWords_jsons.append(review_filename)
          neuronWords_data[review_filename] = dstMat
-         w = collections.OrderedDict(words=kkeys,scores=np.sum(lstm_lrp_x,axis=1))
+         w = collections.OrderedDict(words=kkeys,scores=[np.sum(lstm_lrp_x,axis=1),np.sum(lstm_lrp_h,axis=1),np.sum(lstm_lrp_g,axis=1),np.sum(lstm_lrp_c,axis=1)])
          LRP[k] = w
 
     posNeg_predictionLabel = get_PosNegPredictionLabel(reviewLRP_data)
