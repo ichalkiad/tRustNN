@@ -21,7 +21,7 @@ from lrp import get_DstMatrix_singleReview
 
 #X: [n_features,n_samples]
 
-def clustering(X, algorithm, n_clusters):
+def clustering(X, algorithm, n_clusters=2):
 
     X = np.transpose(X)
     
@@ -82,7 +82,7 @@ def clustering(X, algorithm, n_clusters):
 
 
 
-def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neuronData=None):
+def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None):
 
     spectral = np.hstack([Spectral6] * 20)  
     #keep only review name
@@ -92,7 +92,7 @@ def apply_cluster(data,algorithm,n_clusters,algorithm_data=None,review=None,neur
     colors = None
     
     if ((algorithm == "KMeans - selected gate") or (algorithm == "Internal state clustering (LSTM's outputs)")):
-        x_cl, y_pred = clustering(data, algorithm_data, n_clusters)
+        x_cl, y_pred = clustering(data, "KMeans", n_clusters)
     else:
         if algorithm == "DBSCAN - selected review":
             reviewData_name = [s for s in list(neuronData.keys()) if review_part in s][0]
@@ -125,8 +125,8 @@ def get_cluster_algorithms():
             "DBSCAN - all reviews",
             "AgglomerativeClustering - all reviews",
             "Positive-Negative neuron clustering (LSTM's predictions)",
-             "Internal state clustering (LSTM's outputs)"],
-            ["KMeans","SpectralClustering","Ward"])
+             "Internal state clustering (LSTM's outputs)"]
+            )
 
     
 

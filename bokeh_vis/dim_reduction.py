@@ -17,7 +17,7 @@ from sklearn import (manifold, datasets, decomposition, ensemble,
 #X: [n_features,n_samples]
 
 
-def project(X, algorithm, n_neighbors, labels=None):
+def project(X, algorithm, n_neighbors=10, labels=None):
 
     n_components = 2
     X = np.transpose(X)
@@ -54,13 +54,7 @@ def project(X, algorithm, n_neighbors, labels=None):
 
 def get_dimReduction_algorithms():
 
-    """
-    'LDA',
-    """
-    return ['LSA',
-            'PCA',
-            'ISOMAP',
-            'LLE',
+    return ['PCA',
             'MDS',
             'tSNE'
            ]
