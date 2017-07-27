@@ -134,7 +134,7 @@ def update_source(attrname, old, new):
         text_set.text = "Internal state clustering - selected review: Clusters representation of input review at every timestep as learned by the LSTM layer." 
         lstm_hidVal = np.array(lstm_hidden[rawInput_selections.value])
         x_pr,performance_metric = dim_reduction.project(np.transpose(lstm_hidVal), algorithm, knn, labels)
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(data=np.transpose(lstm_hidVal),algorithm=algorithm_cl_neurons,n_clusters=n_clusters,review=None,neuronData=None)
+        cluster_labels, colors, cl_spectral = clustering.apply_cluster(data=np.transpose(lstm_hidVal),algorithm=algorithm_cl_neurons,n_clusters=n_clusters,review=None,neuronData=None,mode="nn")
         w = [i for i in range(lstm_hidVal.shape[0])]
     elif algorithm_cl_neurons=="DBSCAN - all reviews" or algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
         if algorithm_cl_neurons=="DBSCAN - all reviews":
@@ -142,12 +142,12 @@ def update_source(attrname, old, new):
         elif algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
             text_set.text = "AgglomerativeClustering - all reviews: Hierarchical clustering of neurons based on how related their most activating words are. List of activating words generated from all reviews."
         neuronData = neuronWords_data_full
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData)
+        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
         w = mostActiveWords
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         text_set.text = "Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative."
         neuronData = posNeg_predictionLabel
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData)
+        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
         w = mostActiveWords
     else:
         if algorithm_cl_neurons=="KMeans - selected gate":
@@ -155,7 +155,7 @@ def update_source(attrname, old, new):
         elif algorithm_cl_neurons=="DBSCAN - selected review":
             text_set.text = "DBSCAN - selected review: Clusters neurons based on how related their most activating words are. List of activating words generated from seleceted review."
         neuronData = neuronWords_data
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData)
+        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
         w = mostActiveWords
 
     
@@ -170,7 +170,7 @@ def update_source(attrname, old, new):
     #update raw input    
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
     X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, labels=labels)
-    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters)
+    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
     rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
     color_dict = get_wc_colourGroups(rawInput_source)
     print(rawInput_selections.value)
@@ -240,7 +240,7 @@ tools = "pan,wheel_zoom,box_zoom,reset"
 labels = None 
 data_pr = data[lstm_layer_name][gate_selections.value]
 X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, labels=labels)
-X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value))
+X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value),mode="nn")
 proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors,w=mostActiveWords))
 project_plot = figure(title=projection_selections.value + performance_metric[0] + performance_metric[1],tools=tools,plot_width=300, plot_height=300)
 project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
@@ -251,9 +251,8 @@ project_plot.add_tools(hover_input)
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
 X_w2v, performance_metric_w2v = dim_reduction.project(text_data, "PCA", n_neighbors=10, labels=labels)
-w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[1].value))
+w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[1].value),mode="wc")
 rawInput_source = ColumnDataSource(dict(x=X_w2v[:,0],y=X_w2v[:,1],z=w2v_colors,w=text_words))
-
 
 
 #WordCloud
@@ -268,7 +267,7 @@ wc_plot.add_glyph(img_source, image)
 
 
 text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-text_banner = Paragraph(text=open(text_src,"r").read(), width=900, height=200)
+text_banner = Paragraph(text=open(text_src,"r").read(), width=1300, height=100)
 label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE", width=200, height=30)
 
 text_0 = Paragraph(text="Clustering option:", width=200, height=20)

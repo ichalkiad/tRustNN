@@ -1,6 +1,6 @@
 import numpy as np
 np.random.seed(0)
-
+import random
 from bokeh.io import curdoc
 from bokeh.layouts import widgetbox, row, column
 from bokeh.models import ColumnDataSource, Select, Slider
@@ -82,9 +82,14 @@ def clustering(X, algorithm, n_clusters=2):
 
 
 
-def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None):
+def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None,mode="nn"):
 
-    spectral = np.hstack([Spectral6] * 20)  
+    spectral = np.hstack([Spectral6] * 20)
+    if mode=="nn":
+        spectral = ['#d50000','#ff80ab','#6200ea','#40c4ff','#18ffff']
+    elif mode=="wc":
+        spectral = ['#aed581','#ff5722','#8d6e63','#006064','#4caf50','#ff6f00','#3e2723']
+    
     #keep only review name
     if review!=None:
         review_part = review.split('/')[-1][:-4]
