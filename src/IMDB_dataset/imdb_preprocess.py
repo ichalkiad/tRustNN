@@ -69,14 +69,18 @@ def remove_unk(x,n_words):
 
 
 
-def extract_features_w2v(filenames_train_valid,filenames_test,seed,save_test=None):
+def extract_features_w2v(filenames,seed,test_size=0.05,save_test=None):
     
-    random.shuffle(filenames_train_valid)
-    random.shuffle(filenames_test)
+    random.shuffle(filenames)
 
-    X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),test_size=0.1,random_state=seed)
+    X_train, X_valid, y_train, y_valid = train_test_split(filenames, np.zeros(len(filenames)),test_size=2*test_size,random_state=seed)
     filenames_train = X_train
     filenames_valid = X_valid
+
+    X_valid, X_test, y_valid, y_test = train_test_split(filenames_valid, np.zeros(len(filenames_valid)),test_size=0.5,random_state=seed)
+    filenames_valid = X_valid
+    filenames_test  = X_test
+
     
     # Load Google's pre-trained Word2Vec model.
     model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
@@ -112,10 +116,17 @@ def extract_features_w2v(filenames_train_valid,filenames_test,seed,save_test=Non
 
 
 
-def extract_features(filenames_train_valid,filenames_test,seed,n_words,dictionary):
+def extract_features(filenames,seed,test_size,n_words,dictionary):
     
-    random.shuffle(filenames_train_valid)
-    random.shuffle(filenames_test)
+    random.shuffle(filenames)
+
+    X_train, X_valid, y_train, y_valid = train_test_split(filenames, np.zeros(len(filenames)),test_size=2*test_size,random_state=seed)
+    filenames_train = X_train
+    filenames_valid = X_valid
+
+    X_valid, X_test, y_valid, y_test = train_test_split(filenames_valid, np.zeros(len(filenames_valid)),test_size=0.5,random_state=seed)
+    filenames_valid = X_valid
+    filenames_test  = X_test
 
 
     with open(dictionary, 'rb') as handle:
@@ -200,9 +211,9 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
 
 
-def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None,save_test=None):
+def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,test_size=0.1,save_test=None):
 
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict = extract_features_w2v(filenames_train_valid,filenames_test,seed,save_test)
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict = extract_features_w2v(filenames,seed,test_size,save_test)
     trainX,validX,testX,maxlen = pad_sequences(trainX, validX, testX, value=0.)
     trainX = np.array(trainX)
     validX = np.array(validX)

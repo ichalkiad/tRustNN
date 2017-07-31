@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData import filenames_train_valid,filenames_test
+from IMDB_dataset.textData_cluster import filenames
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -59,7 +59,7 @@ def config():
     internals = "all"    
     save_mode = "pickle"
     n_epoch = 10
-    n_test_samples = 50 # -1 for whole test set
+    test_size = 0.05 # -1 for whole test set
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -125,20 +125,16 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
 
 @ex.automain
-def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode,n_test_samples):
+def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode,test_size):
 
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    test_idx = np.random.randint(0,len(filenames_test),n_test_samples)
-    filenames_test_p = []
-    for i in test_idx:
-        filenames_test_p.append(filenames_test[i])
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test_p,n_words,dictionary,save_test="save_test")
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed,filenames,n_words,dictionary,test_size,save_test="save_test")
     
     d = test_dict        
     if save_mode=="pickle":
