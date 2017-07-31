@@ -1,12 +1,11 @@
-filenames_train_valid = ["/home/yannis/Desktop/tRustNN/aclImdb/train/neg/96_1.txt",
-                         '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/95_3.txt',
+filenames = ["/home/yannis/Desktop/tRustNN/aclImdb/train/neg/96_1.txt",'/home/yannis/Desktop/tRustNN/aclImdb/train/neg/95_3.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/94_1.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/93_1.txt',
-'/home/yannis/Desktop/tRustNN/aclImdb/train/neg/92_3.txt',
+'/home/yannis/Desktop/tRustNN/aclImdb/train/neg/92_3.txt']
+
+""",
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/91_1.txt',
-                         '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/90_4.txt']
-"""
-,
+'/home/yannis/Desktop/tRustNN/aclImdb/train/neg/90_4.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/89_2.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/88_2.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/neg/87_4.txt',
@@ -24969,14 +24968,8 @@ filenames_train_valid = ["/home/yannis/Desktop/tRustNN/aclImdb/train/neg/96_1.tx
 '/home/yannis/Desktop/tRustNN/aclImdb/train/pos/12418_10.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/pos/12417_10.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/train/pos/12416_10.txt',
-]
-"""
-
-filenames_test = ['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt',
-'/home/yannis/Desktop/tRustNN/aclImdb/test/pos/126_10.txt']
-
-"""
-,
+'/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt',
+'/home/yannis/Desktop/tRustNN/aclImdb/test/pos/126_10.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/test/pos/125_7.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/test/pos/124_10.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/test/pos/123_10.txt',
@@ -37476,4 +37469,5 @@ filenames_test = ['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/test/pos/12417_9.txt',
 '/home/yannis/Desktop/tRustNN/aclImdb/test/pos/12416_7.txt',
 ]
+
 """
