@@ -169,12 +169,14 @@ def update_source(attrname, old, new):
         
     #update raw input    
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
-    X_w2v, performance_metric_w2v = dim_reduction.project(text_data, algorithm, knn, labels=labels)
     w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
-    rawInput_source.data = dict(x=X_w2v[:, 0], y=X_w2v[:, 1], z=w2v_colors, w=text_words)
+    rawInput_source.data = dict(z=w2v_colors, w=text_words)
     color_dict = get_wc_colourGroups(rawInput_source)
     print(rawInput_selections.value)
-    wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
+    if gate_value=="forget_gate":
+        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
+    else:
+        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
     print(wc_filename)
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
 
@@ -250,9 +252,8 @@ project_plot.add_tools(hover_input)
 
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
-X_w2v, performance_metric_w2v = dim_reduction.project(text_data, "PCA", n_neighbors=10, labels=labels)
 w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[1].value),mode="wc")
-rawInput_source = ColumnDataSource(dict(x=X_w2v[:,0],y=X_w2v[:,1],z=w2v_colors,w=text_words))
+rawInput_source = ColumnDataSource(dict(z=w2v_colors,w=text_words))
 
 
 #WordCloud
