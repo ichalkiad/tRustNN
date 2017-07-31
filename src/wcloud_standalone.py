@@ -1,5 +1,5 @@
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData import filenames_test
+from IMDB_dataset.textData import filenames
 from sacred.observers import FileStorageObserver
 from sacred.observers import MongoObserver
 from scipy.special import expit
@@ -74,7 +74,7 @@ def config():
 
 
 
-def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
+def get_wcloud(LRP,k,save_dir,color_dict=None,gate=None,text=None):
 
      save_filename = re.sub('/', '_', k[-18:-4])+"_word_cloud.png"
      try:
@@ -92,55 +92,62 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
 
      ws = LRP[k]['words']
      scs = LRP[k]['scores']
-     weights=collections.OrderedDict()
-     for i in range(len(ws)):
-         weights[ws[i]] = scs[i]
-     wc = WordCloud(
-            background_color="white",
-            max_words=2000,
-            width = 400,
-            height = 400,
-            stopwords=stopwords.words("english")
-          )
-     wc.generate_from_frequencies(weights)
-
      if gate=="in":
-         del wc
          wc = WordCloud(
             background_color="white",
             max_words=2000,
             width = 400,
             height = 400,
             stopwords=stopwords.words("english")
-          )
+         )
          wc.generate(text)
          save_filename = save_filename[:-4]+"_i.png"
-         
-     elif gate=="forget":
-        out_words = [i[0][0] for i in wc.layout_]
-        del weights
-        del wc
-        weights=collections.OrderedDict()
-        for i in range(len(ws)):
-            if ws[i] not in out_words:
-                weights[ws[i]] = scs[i]*1e+80
-        wc = WordCloud(
+     elif gate=="out":
+         weights=collections.OrderedDict()
+         for i in range(len(ws)):
+             weights[ws[i]] = scs[i]
+         wc = WordCloud(
             background_color="white",
             max_words=2000,
             width = 400,
             height = 400,
             stopwords=stopwords.words("english")
-          )
-        wc.generate_from_frequencies(weights)
-        save_filename = save_filename[:-4]+"_f.png"
-        
+         )
+         wc.generate_from_frequencies(weights)
+     elif gate=="forget":
+         weights=collections.OrderedDict()
+         for i in range(len(ws)):
+             weights[ws[i]] = scs[i]
+         wc = WordCloud(
+            background_color="white",
+            max_words=2000,
+            width = 400,
+            height = 400,
+            stopwords=stopwords.words("english")
+         )
+         wc.generate_from_frequencies(weights)
+         out_words = [i[0][0] for i in wc.layout_]
+         del weights
+         del wc
+         weights=collections.OrderedDict()
+         for i in range(len(ws)):
+             if ws[i] not in out_words:
+                weights[ws[i]] = scs[i]*1e+80
+         wc = WordCloud(
+                 background_color="white",
+                 max_words=2000,
+                 width = 400,
+                 height = 400,
+                 stopwords=stopwords.words("english")
+         )
+         wc.generate_from_frequencies(weights)
+         save_filename = save_filename[:-4]+"_f.png"
+             
      if color_dict!=None:
         default_color = 'grey'
         grouped_color_func_single = wcColor.SimpleGroupedColorFunc(color_dict, default_color)
-
         wc.recolor(color_func=grouped_color_func_single)
 
-     
      wc.to_file(save_dir+save_filename)
         
      return save_filename,wc.to_image()

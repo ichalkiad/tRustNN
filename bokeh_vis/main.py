@@ -49,14 +49,14 @@ def get_wc_colourGroups(rawInput_source):
 
 def get_selections(keys):
     
-    gates = ["IN - what to add on","FORGET - what to drop off","OUT - where to focus on"]
+    gates = ["IN - what to add on","NOT IMPORTANT - what to drop off","IMPORTANT - where to focus on"]
     select_gate = Select(title="Gate", value="IN - what to add on", options=gates)
 
     if select_gate.value == "IN - what to add on":
         select_gate.value = "input_gate"
-    elif select_gate.value == "FORGET - what to drop off":
+    elif select_gate.value == "NOT IMPORTANT - what to drop off":
         select_gate.value = "forget_gate"
-    elif select_gate.value == "OUT - where to focus on":
+    elif select_gate.value == "IMPORTANT - where to focus on":
         select_gate.value = "output_gate"
 
     return select_gate
@@ -114,9 +114,9 @@ def update_source(attrname, old, new):
     gate_value  = gate_selections.value
     if gate_value == "IN - what to add on":
         gate_value = "input_gate"
-    elif gate_value == "FORGET - what to drop off":
+    elif gate_value == "NOT IMPORTANT - what to drop off":
         gate_value = "forget_gate"
-    elif gate_value == "OUT - where to focus on":
+    elif gate_value == "IMPORTANT - where to focus on":
         gate_value = "output_gate"
     
     x = data[lstm_layer_name][gate_value]
@@ -158,16 +158,13 @@ def update_source(attrname, old, new):
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
         w = mostActiveWords
 
-    
+   
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors, w=w)
-
     if performance_metric!=(None,None):
         project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
     else:
         project_plot.title.text = algorithm
-
-        
-        
+       
     #update raw input
     text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
     text_banner.text = open(text_src,"r").read()
@@ -180,13 +177,13 @@ def update_source(attrname, old, new):
     print(rawInput_selections.value)
     if gate_value=="input_gate":
         wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
-    if gate_value=="forget_gate":
+    elif gate_value=="forget_gate":
         wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
-    else:
+    elif gate_value=="output_gate":
         wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
 
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
-    print(wc_filename)
+    print(load_dir+wc_filename)
 
 
 
@@ -228,7 +225,6 @@ clustering_selections = get_clustering_selections(algorithm_neurons)
 #Raw input clustering
 rawInput_selections = get_rawInput_selections()
 
-
 hover_input = HoverTool()
 hover_input.tooltips = """
     <div>
@@ -240,7 +236,6 @@ hover_input.tooltips = """
         </div>
     </div>
     """
-
 hover_input.mode = 'mouse'
 tools = "pan,wheel_zoom,box_zoom,reset"
 
@@ -273,7 +268,7 @@ img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=600)
 ydr = Range1d(start=0, end=600)
 wc_plot = Plot(title=None, x_range=xdr, y_range=ydr, plot_width=500, plot_height=550, min_border=0)
-image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left")
+image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left",retry_attempts=3, retry_timeout=2500)
 wc_plot.add_glyph(img_source, image)
 
 
