@@ -1,5 +1,6 @@
 import numpy as np
 import string
+import re
 from nltk.corpus import stopwords as sw
 from nltk.corpus import wordnet as wn
 from nltk import wordpunct_tokenize
@@ -32,6 +33,7 @@ class NLTKPreprocessor(BaseEstimator, TransformerMixin):
         ]
 
     def tokenize(self, document):
+        re.sub('<br/>','',document)
         # Break the document into sentences
         for sent in sent_tokenize(document):
             # Break the sentence into part of speech tagged tokens

@@ -167,22 +167,28 @@ def update_source(attrname, old, new):
         project_plot.title.text = algorithm
 
         
-    #update raw input    
+        
+    #update raw input
+    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
+    text_banner.text = open(text_src,"r").read()
+    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
+
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
     w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
     rawInput_source.data = dict(z=w2v_colors, w=text_words)
     color_dict = get_wc_colourGroups(rawInput_source)
     print(rawInput_selections.value)
+    if gate_value=="input_gate":
+        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
     if gate_value=="forget_gate":
         wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
     else:
-        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
-    print(wc_filename)
-    wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
+        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
 
-    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-    text_banner.text = open(text_src,"r").read()
-    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
+    wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
+    print(wc_filename)
+
+
 
 
     
@@ -256,9 +262,13 @@ w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,alg
 rawInput_source = ColumnDataSource(dict(z=w2v_colors,w=text_words))
 
 
+text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
+text_banner = Paragraph(text=open(text_src,"r").read(), width=1300, height=100)
+label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE", width=200, height=30)
+
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source)
-wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict)
+wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
 img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=600)
 ydr = Range1d(start=0, end=600)
@@ -267,9 +277,6 @@ image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_
 wc_plot.add_glyph(img_source, image)
 
 
-text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-text_banner = Paragraph(text=open(text_src,"r").read(), width=1300, height=100)
-label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE", width=200, height=30)
 
 text_0 = Paragraph(text="Clustering option:", width=200, height=20)
 text_set = Paragraph(text="KMeans: Clusters neurons based on their gate values after training.", width=250, height=100)

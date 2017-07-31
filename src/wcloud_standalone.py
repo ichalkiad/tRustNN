@@ -74,7 +74,21 @@ def config():
 
 
 
-def get_wcloud(LRP,k,save_dir,color_dict=None):
+def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
+
+     save_filename = re.sub('/', '_', k[-18:-4])+"_word_cloud.png"
+     try:
+         os.remove(save_dir+re.sub('/', '_', k[-18:-4])+"_word_cloud.png")
+     except OSError:
+         pass
+     try:
+         os.remove(save_dir+re.sub('/', '_', k[-18:-4])+"_word_cloud_f.png")
+     except OSError:
+         pass
+     try:
+         os.remove(save_dir+re.sub('/', '_', k[-18:-4])+"_word_cloud_i.png")
+     except OSError:
+         pass
 
      ws = LRP[k]['words']
      scs = LRP[k]['scores']
@@ -89,6 +103,37 @@ def get_wcloud(LRP,k,save_dir,color_dict=None):
             stopwords=stopwords.words("english")
           )
      wc.generate_from_frequencies(weights)
+
+     if gate=="in":
+         del wc
+         wc = WordCloud(
+            background_color="white",
+            max_words=2000,
+            width = 400,
+            height = 400,
+            stopwords=stopwords.words("english")
+          )
+         wc.generate(text)
+         save_filename = save_filename[:-4]+"_i.png"
+         
+     elif gate=="forget":
+        out_words = [i[0][0] for i in wc.layout_]
+        del weights
+        del wc
+        weights=collections.OrderedDict()
+        for i in range(len(ws)):
+            if ws[i] not in out_words:
+                weights[ws[i]] = scs[i]*1e+80
+        wc = WordCloud(
+            background_color="white",
+            max_words=2000,
+            width = 400,
+            height = 400,
+            stopwords=stopwords.words("english")
+          )
+        wc.generate_from_frequencies(weights)
+        save_filename = save_filename[:-4]+"_f.png"
+        
      if color_dict!=None:
         default_color = 'grey'
         grouped_color_func_single = wcColor.SimpleGroupedColorFunc(color_dict, default_color)
@@ -96,11 +141,6 @@ def get_wcloud(LRP,k,save_dir,color_dict=None):
         wc.recolor(color_func=grouped_color_func_single)
 
      
-     save_filename = re.sub('/', '_', k[-18:-4])+"_word_cloud.png"
-     try:
-         os.remove(save_dir+save_filename)
-     except OSError:
-         pass
      wc.to_file(save_dir+save_filename)
         
      return save_filename,wc.to_image()
