@@ -12,8 +12,9 @@ import re
 import pickle
 import gensim
 
-def get_reviewLRP_data(i,predictions,lrp_neurons):
 
+def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
+# Get neurons that trigger exclusively for positive or negative reviews according to the network. Assign them to neutral if activate for both types of reviews.
     reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
 
     if predictions[i].all()==0:
@@ -25,7 +26,7 @@ def get_reviewLRP_data(i,predictions,lrp_neurons):
                    reviewLRP_data["pos"].remove(j)
                    reviewLRP_data["neutral"].extend(j)
               elif j not in reviewLRP_data["neg"]:
-                   reviewLRP_data["neg"].extend(lrp_neurons)
+                   reviewLRP_data["neg"].extend(j)
     elif predictions[i]==1:
        for j in lrp_neurons:
            if reviewLRP_data["pos"]==[]:
@@ -35,25 +36,13 @@ def get_reviewLRP_data(i,predictions,lrp_neurons):
                  reviewLRP_data["neg"].remove(j)
                  reviewLRP_data["neutral"].extend(j)
               elif j not in reviewLRP_data["pos"]:
-                 reviewLRP_data["pos"].extend(lrp_neurons)
+                 reviewLRP_data["pos"].extend(j)
 
     return reviewLRP_data
 
-def get_PosNegPredictionLabel(reviewLRP_data):
-
-    """
-    max1=-1
-    max2=-1
-    max3=-1
-    if reviewLRP_data["pos"]!=[]:
-        max1 = max(reviewLRP_data["pos"])
-    if reviewLRP_data["neg"]!=[]:
-        max2 = max(reviewLRP_data["neg"])
-    if reviewLRP_data["neutral"]!=[]:
-        max3 = max(reviewLRP_data["neutral"])
-    neuron_num = max(max1,max2,max3)
-    """
-
+def get_NeuronType(reviewLRP_data):
+# Assign a label to each neuron based on whether it activates on positive-,negative-only or both types of reviews.
+    
     neuron_num = len(reviewLRP_data["pos"])+len(reviewLRP_data["neg"])+len(reviewLRP_data["neutral"])
     posNeg_predictionLabel = np.zeros((neuron_num,))
 
@@ -67,7 +56,7 @@ def get_PosNegPredictionLabel(reviewLRP_data):
 
 
 
-def get_completeNeuronActDst(neuronWords_data_fullTestSet):
+def get_NeuronSimilarity_AllReviews(neuronWords_data_fullTestSet):
 
     model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
@@ -81,23 +70,26 @@ def get_completeNeuronActDst(neuronWords_data_fullTestSet):
     
     return dstMat
 
-def get_completeNeuronAct_data(save_dir,neuronWords_jsons):
 
+def get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5):
+#Get list of top-N exciting words for each neuron based on the whole dataset of reviews
+    
     #neuron-word data dictionary
     nw_data = dict()
-
     for i in neuronWords_jsons:
         keys,data = data_format.get_data(save_dir+i)
         kkeys = list(keys)
         for j in kkeys:
-            if j in list(nw_data.keys()):
-               vals = list(data[j]) + list(set(list(nw_data[j]))-set(list(data[j])))
-               nw_data[j] = vals
-            else:
-               nw_data[j] = data[j]
-
+            if len(list(nw_data[j]))<topN:
+                if j in list(nw_data.keys()):
+                    vals = list(data[j]) + list(set(list(nw_data[j]))-set(list(data[j])))
+                    nw_data[j] = vals
+                else:
+                    nw_data[j] = data[j]
+                
     return nw_data        
-        
+
+
 def neuron_value(test_data_json,review,neuron,w2v):
 
     if w2v==None:
@@ -134,7 +126,7 @@ def neuron_distance(test_data_json=None,review=None,neuron1=[],neuron2=[],w2v=No
 
     
 def get_DstMatrix_singleReview(review_MaxAct_json,test_data_json,review):
-
+# Get similarity matrix between neurons based on the custom distance function defined above, calculated based on a single review.
     keys,data = data_format.get_data(review_MaxAct_json)
     kkeys = list(keys)
     dstMat = np.zeros((len(kkeys),len(kkeys)))
@@ -145,17 +137,21 @@ def get_DstMatrix_singleReview(review_MaxAct_json,test_data_json,review):
     return dstMat
                 
 
-def invert_dict_nonunique(d):
+def invert_dict_nonunique(d,topN):
     newdict = {}
     for k in d:
+        i = 0
         for v in d[k]:
-            newdict.setdefault(v, []).append(k)
+            if i<topN:
+                newdict.setdefault(v, []).append(k)
+                i = i + 1
             
     return newdict
 
 
-def get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN=5):
-
+def get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN=5):
+# Get the N words that excite each LSTM cell maximum, i.e. neuron of output has maximum value during forward pass
+    
      d = collections.OrderedDict()
      keys_hidden,data_hidden = data_format.get_data(lstm_hidden_json)
      kdata = data_hidden[k]
@@ -164,7 +160,7 @@ def get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN=5):
           ord_cells = np.argsort(kdata[i,:],axis=0,kind='quicksort')
           d[kkeys[i]] = ord_cells[-(topN+1):-1].tolist()
 
-     NtoW = invert_dict_nonunique(d)
+     NtoW = invert_dict_nonunique(d,topN)
      
      with open(save_dir+re.sub('/', '_', k[-18:-4])+"_ActCells.json", 'w') as f:
             json.dump(NtoW, f)
@@ -173,8 +169,9 @@ def get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN=5):
 
 
  
-def get_reviewRelevant_cells(lrp_fc,review,save_dir,topN=5):
-     
+def get_topLRP_cells(lrp_fc,review,save_dir,topN=5):
+# Get the N LSTM cells that have been assigned the maximum LRP value from the fully connected layer.
+    
      sorted_LRP = np.argsort(lrp_fc,axis=0,kind='quicksort')
      idx = sorted_LRP[-(topN+1):-1].tolist()
      
@@ -317,6 +314,8 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
 def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
 
     LRP = collections.OrderedDict()
+    totalLRP = collections.OrderedDict()
+
     neuronWords_jsons = []
     neuronWords_data = collections.OrderedDict()
    
@@ -330,21 +329,21 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          
          lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
-         
-         lrp_neurons = get_reviewRelevant_cells(lrp_fc,k,save_dir,topN)
-         reviewLRP_data = get_reviewLRP_data(i,predictions,lrp_neurons)
-         review_filename, _ = get_reviewForwardMaxAct_cells(lstm_hidden_json,kkeys,k,save_dir,topN)
+         lrp_neurons = get_topLRP_cells(lrp_fc,k,save_dir,topN)
+         reviewLRP_data = get_PosNegNeurons_dict(i,predictions,lrp_neurons)
+         review_filename, _ = get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN)
          dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
          neuronWords_jsons.append(review_filename)
-         neuronWords_data[review_filename] = dstMat
-         w = collections.OrderedDict(words=kkeys,scores=[np.sum(lstm_lrp_x,axis=1),np.sum(lstm_lrp_h,axis=1),np.sum(lstm_lrp_g,axis=1),np.sum(lstm_lrp_c,axis=1)])
+         similarityMatrix_PerReview[review_filename] = dstMat
+         w = collections.OrderedDict(words=kkeys,scores=[np.sum(lstm_lrp_x,axis=1)],size=len(kkeys))
          LRP[k] = w
+         totalLRP[k] = lstm_lrp_x
 
-    posNeg_predictionLabel = get_PosNegPredictionLabel(reviewLRP_data)
-    neuronWords_data_fullTestSet = get_completeNeuronAct_data(save_dir,neuronWords_jsons)
-    neuronWords_data_full = get_completeNeuronActDst(neuronWords_data_fullTestSet)
-    with open(save_dir+"neuronWords_data_fullTestSet.pickle", 'wb') as f:
-        pickle.dump((neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel), f)
+    neuron_types = get_NeuronType(reviewLRP_data)
+    excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)
+    similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(ExcitingWords_fullSet)
+    with open(save_dir+"exploratoryDataFull.pickle", 'wb') as f:
+        pickle.dump((excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP), f)
     print("Saved auxiliary data dictionaries and distance matrices...")
 
     
