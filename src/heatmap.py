@@ -8,6 +8,7 @@
 '''
 
 import matplotlib.pyplot as plt
+import re
 
 def rescale_score_by_abs (score, max_score, min_score):
     """
@@ -50,21 +51,22 @@ def getRGB (c_tuple):
 
      
 def span_word (word, score, colormap):
+  
     return "<span style=\"background-color:"+getRGB(colormap(score))+"\">"+word+"</span>"
 
 
-def html_heatmap (words, scores, cmap_name="bwr"):
+def html_heatmap (words, scores, text_banner, cmap_name="bwr"):
     
     colormap  = plt.get_cmap(cmap_name)
-     
+
     assert len(words)==len(scores)
     max_s     = max(scores)
     min_s     = min(scores)
     
-    output_text = ""
-    
     for idx, w in enumerate(words):
-        score       = rescale_score_by_abs(scores[idx], max_s, min_s)
-        output_text = output_text + span_word(w, score, colormap) + " "
+        
+        score = rescale_score_by_abs(scores[idx], max_s, min_s)
+        re.sub(w, span_word(w, score, colormap), text_banner)
+
+
     
-    return output_text + "\n"

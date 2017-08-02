@@ -1,4 +1,4 @@
-from bokeh.models import ColumnDataSource, HoverTool, Range1d, Plot, LinearAxis, Grid, Paragraph
+from bokeh.models import ColumnDataSource, HoverTool, Range1d, Plot, LinearAxis, Grid, Paragraph,TapTool,Div
 from bokeh.plotting import figure, show, output_file
 from bokeh.io import curdoc
 from bokeh.layouts import widgetbox , layout
@@ -12,14 +12,24 @@ import os
 import pickle
 from bokeh.models.glyphs import ImageURL
 import re
+from bokeh.models.callbacks import CustomJS
 
 src_path = os.path.abspath("./src/")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 import data_format
 from wcloud_standalone import get_wcloud
+import heatmap as hmap
 
 
+
+def tap_callback(attrname,old,new):
+
+    ws = LRP[rawInput_selections.value]['words']
+    scs = LRP[rawInput_selections.value]['scores']
+    hmap.html_heatmap(ws,scs,text_banner.text)
+
+    
 def get_mostActiveWords(neuronWords_data_fullTestSet):
 
     words = []
@@ -237,7 +247,7 @@ hover_input.tooltips = """
     </div>
     """
 hover_input.mode = 'mouse'
-tools = "pan,wheel_zoom,box_zoom,reset"
+tools = "pan,wheel_zoom,box_zoom,reset,tap"
 
 #Dimensionality reduction
 labels = None 
@@ -246,10 +256,11 @@ X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, la
 X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value),mode="nn")
 proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors,w=mostActiveWords))
 project_plot = figure(title=projection_selections.value + performance_metric[0] + performance_metric[1],tools=tools,plot_width=300, plot_height=300)
-project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
+scatter_tap = project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
 project_plot.xaxis.axis_label = 'Dim 1'
 project_plot.yaxis.axis_label = 'Dim 2'
 project_plot.add_tools(hover_input)
+taptool = project_plot.select(dict(type=TapTool))[0]
 
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
@@ -258,8 +269,9 @@ rawInput_source = ColumnDataSource(dict(z=w2v_colors,w=text_words))
 
 
 text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-text_banner = Paragraph(text=open(text_src,"r").read(), width=1300, height=100)
+text_banner = Div(text=open(text_src,"r").read(), width=1300, height=100)
 label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE", width=200, height=30)
+
 
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source)
@@ -272,9 +284,9 @@ image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_
 wc_plot.add_glyph(img_source, image)
 
 
-
 text_0 = Paragraph(text="Clustering option:", width=200, height=20)
 text_set = Paragraph(text="KMeans: Clusters neurons based on their gate values after training.", width=250, height=100)
+
 
 #Layout
 gate_selections.on_change('value', update_source)
@@ -282,6 +294,7 @@ projection_selections.on_change('value', update_source)
 for attr in clustering_selections:
     attr.on_change('value', update_source)
 rawInput_selections.on_change('value', update_source)
+scatter_tap.data_source.on_change('selected', tap_callback)
 
 
 gp = layout([project_plot, wc_plot, widgetbox(gate_selections,projection_selections,rawInput_selections,clustering_selections[0],clustering_selections[1],text_0,text_set,label_banner)],
