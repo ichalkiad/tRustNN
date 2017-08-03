@@ -24,9 +24,9 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
            else:
               if j in reviewLRP_data["pos"]:
                    reviewLRP_data["pos"].remove(j)
-                   reviewLRP_data["neutral"].extend(j)
+                   reviewLRP_data["neutral"].append(j)
               elif j not in reviewLRP_data["neg"]:
-                   reviewLRP_data["neg"].extend(j)
+                   reviewLRP_data["neg"].append(j)
     elif predictions[i]==1:
        for j in lrp_neurons:
            if reviewLRP_data["pos"]==[]:
@@ -34,9 +34,9 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
            else:
               if j in reviewLRP_data["neg"]:
                  reviewLRP_data["neg"].remove(j)
-                 reviewLRP_data["neutral"].extend(j)
+                 reviewLRP_data["neutral"].append(j)
               elif j not in reviewLRP_data["pos"]:
-                 reviewLRP_data["pos"].extend(j)
+                 reviewLRP_data["pos"].append(j)
 
     return reviewLRP_data
 
@@ -76,17 +76,20 @@ def get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5):
     
     #neuron-word data dictionary
     nw_data = dict()
+    done = []
     for i in neuronWords_jsons:
         keys,data = data_format.get_data(save_dir+i)
         kkeys = list(keys)
         for j in kkeys:
-            if len(list(nw_data[j]))<topN:
+            if j not in done:
                 if j in list(nw_data.keys()):
                     vals = list(data[j]) + list(set(list(nw_data[j]))-set(list(data[j])))
                     nw_data[j] = vals
                 else:
                     nw_data[j] = data[j]
-                
+                if len(list(nw_data[j]))>=topN:
+                    done.append(j)
+
     return nw_data        
 
 
@@ -317,7 +320,7 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
     totalLRP = collections.OrderedDict()
 
     neuronWords_jsons = []
-    neuronWords_data = collections.OrderedDict()
+    similarityMatrix_PerReview = collections.OrderedDict()
    
     
     keys_test,data_test = data_format.get_data(test_data_json)
@@ -341,9 +344,9 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
 
     neuron_types = get_NeuronType(reviewLRP_data)
     excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)
-    similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(ExcitingWords_fullSet)
+    similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(excitingWords_fullSet)
     with open(save_dir+"exploratoryDataFull.pickle", 'wb') as f:
-        pickle.dump((excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP), f)
+        pickle.dump((excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP), f)
     print("Saved auxiliary data dictionaries and distance matrices...")
 
     

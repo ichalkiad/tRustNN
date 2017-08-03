@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames
+from IMDB_dataset.textData import filenames
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -51,7 +51,7 @@ def config():
     batch_size = 1
     save_path = "./sacred_models/"
     tensorboard_dir = "./sacred_models/tf_logs/"
-    run_id = "runID"
+    run_id = "runID_newOutput"
     n_words = 10000
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
@@ -185,8 +185,8 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     predicted_tgs = model.predict_label(feed)
     LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
-    with open(save_dir+"LRP.pickle","wb") as handle:
-        pickle.dump((LRP,predicted_tgs),handle)
+    with open(save_dir+"lstm_predictions.pickle","wb") as handle:
+        pickle.dump(predicted_tgs,handle)
     print("Finished with LRP and related data...now exiting...")
     
 

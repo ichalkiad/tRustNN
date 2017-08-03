@@ -81,6 +81,10 @@ def extract_features_w2v(filenames,seed,test_size=0.05,save_test=None):
     filenames_valid = X_valid
     filenames_test  = X_test
 
+    print(len(filenames_train))
+    print(len(filenames_valid))
+    print(len(filenames_test))
+
     
     # Load Google's pre-trained Word2Vec model.
     model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
