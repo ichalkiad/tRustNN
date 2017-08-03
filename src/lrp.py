@@ -340,7 +340,7 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          similarityMatrix_PerReview[review_filename] = dstMat
          w = collections.OrderedDict(words=kkeys,scores=[np.sum(lstm_lrp_x,axis=1)],size=len(kkeys))
          LRP[k] = w
-         totalLRP[k] = lstm_lrp_x
+         totalLRP[k] = collections.OrderedDict(words=kkeys,lrp=lstm_lrp_x)
 
     neuron_types = get_NeuronType(reviewLRP_data)
     excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)

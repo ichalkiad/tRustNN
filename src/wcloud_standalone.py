@@ -150,7 +150,7 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate=None,text=None):
 
      wc.to_file(save_dir+save_filename)
         
-     return save_filename,wc.to_image()
+     return save_filename,wc.to_image(),[i[0][0] for i in wc.layout_]
 
 @ex.automain
 def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,feed_input_json,internal_fc_json,internal_hidden_json,internal_state_json):
