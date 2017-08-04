@@ -25,26 +25,11 @@ import heatmap as hmap
 
 def tap_callback(attrname,old,new):
 
-    ws = LRP[rawInput_selections.value]['words']
-    scs = LRP[rawInput_selections.value]['scores']
-    hmap.html_heatmap(ws,scs,text_banner.text)
+    print(attrname)
+    print(old)   
+    #neuronExcitingWords_AllReviews
+    #hmap.html_heatmap(ws,scs,text_banner.text)
 
-    
-def get_mostActiveWords(neuronWords_data_fullTestSet):
-
-    words = []
-    for k in range(len(list(neuronWords_data_fullTestSet.keys()))):
-        if str(k) in list(neuronWords_data_fullTestSet.keys()):
-            vals = list(neuronWords_data_fullTestSet[str(k)])
-            if len(vals)>5:
-                words.append(vals[0]+","+vals[1]+","+vals[2]+","+vals[3]+","+vals[4])
-            else:
-                for i in range(len(vals)):
-                    words.append(vals[i]+",")
-        else:
-            words.append(",")
-                    
-    return words
 
 def get_wc_colourGroups(rawInput_source):
 
@@ -151,25 +136,24 @@ def update_source(attrname, old, new):
             text_set.text = "DBSCAN - all reviews: Clusters neurons based on how related their most activating words are. List of activating words generated from all reviews."
         elif algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
             text_set.text = "AgglomerativeClustering - all reviews: Hierarchical clustering of neurons based on how related their most activating words are. List of activating words generated from all reviews."
-        neuronData = neuronWords_data_full
+        neuronData = similarityMatrix_AllReviews
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
-        w = mostActiveWords
+        w = neuronExcitingWords_AllReviews
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         text_set.text = "Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative."
-        neuronData = posNeg_predictionLabel
+        neuronData = neuron_types
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
-        w = mostActiveWords
+        w = neuronExcitingWords_AllReviews
     else:
         if algorithm_cl_neurons=="KMeans - selected gate":
             text_set.text = "KMeans: Clusters neurons based on their gate values after training."
         elif algorithm_cl_neurons=="DBSCAN - selected review":
             text_set.text = "DBSCAN - selected review: Clusters neurons based on how related their most activating words are. List of activating words generated from seleceted review."
-        neuronData = neuronWords_data
+        neuronData = similarityMatrix_PerReview
         cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
-        w = mostActiveWords
-
+        w = neuronExcitingWords_AllReviews
    
-    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors, w=w)
+    proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
     if performance_metric!=(None,None):
         project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
     else:
@@ -184,16 +168,14 @@ def update_source(attrname, old, new):
     w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
     rawInput_source.data = dict(z=w2v_colors, w=text_words)
     color_dict = get_wc_colourGroups(rawInput_source)
-    print(rawInput_selections.value)
     if gate_value=="input_gate":
-        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
+        wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
     elif gate_value=="forget_gate":
-        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
+        wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
     elif gate_value=="output_gate":
-        wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
+        wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
 
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
-    print(load_dir+wc_filename)
 
 
 
@@ -216,13 +198,14 @@ keys,data = data_format.get_data(load_dir+"model.json")
 keys_raw,data_raw = data_format.get_data(load_dir+"test_data_input.pickle")
 
 #Load auxiliary data
-LRP=None
-with open(load_dir+"LRP.pickle","rb") as handle:
-    (LRP,predicted_tgs) = pickle.load(handle)
-with open(load_dir+"neuronWords_data_fullTestSet.pickle", 'rb') as f:
-    neuronWords_data_fullTestSet,neuronWords_data_full,neuronWords_data,posNeg_predictionLabel = pickle.load(f)
-mostActiveWords = get_mostActiveWords(neuronWords_data_fullTestSet)
+with open(load_dir+"lstm_predictions.pickle","rb") as handle:
+    predicted_tgs = pickle.load(handle)
+with open(load_dir+"exploratoryDataFull.pickle", 'rb') as f:
+    excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP = pickle.load(f)
+
+neuronExcitingWords_AllReviews = list((excitingWords_fullSet.values()))
 _,lstm_hidden = data_format.get_data(load_dir+"test_model_internals_lstm_hidden.pickle")
+
 #Get preset buttons' selections
         
 #LSTM gates
@@ -235,18 +218,6 @@ clustering_selections = get_clustering_selections(algorithm_neurons)
 #Raw input clustering
 rawInput_selections = get_rawInput_selections()
 
-hover_input = HoverTool()
-hover_input.tooltips = """
-    <div>
-        <div>
-            <span style="font-size: 17px; font-weight: bold;">@w</span>
-        </div>
-        <div>
-            <span style="font-size: 15px; color: #966;">Cell No. : $index</span>
-        </div>
-    </div>
-    """
-hover_input.mode = 'mouse'
 tools = "pan,wheel_zoom,box_zoom,reset,tap"
 
 #Dimensionality reduction
@@ -254,12 +225,11 @@ labels = None
 data_pr = data[lstm_layer_name][gate_selections.value]
 X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, labels=labels)
 X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value),mode="nn")
-proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors,w=mostActiveWords))
+proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors))
 project_plot = figure(title=projection_selections.value + performance_metric[0] + performance_metric[1],tools=tools,plot_width=300, plot_height=300)
 scatter_tap = project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
 project_plot.xaxis.axis_label = 'Dim 1'
 project_plot.yaxis.axis_label = 'Dim 2'
-project_plot.add_tools(hover_input)
 taptool = project_plot.select(dict(type=TapTool))[0]
 
 #Input text
@@ -275,12 +245,16 @@ label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[lis
 
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source)
-wc_filename,wc_img = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
+wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
+#if wc from "out" gate
+words_to_be_highlighted = [i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
+
+proj_source.data = dict(x=X[:,0],y=X[:,1],z=X_colors)
 img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=600)
 ydr = Range1d(start=0, end=600)
 wc_plot = Plot(title=None, x_range=xdr, y_range=ydr, plot_width=500, plot_height=550, min_border=0)
-image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left",retry_attempts=3, retry_timeout=2500)
+image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left", retry_attempts=3, retry_timeout=2500)
 wc_plot.add_glyph(img_source, image)
 
 
