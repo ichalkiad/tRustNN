@@ -23,12 +23,7 @@ import heatmap as hmap
 
 
 
-def tap_callback(attrname,old,new):
-
-    print(attrname)
-    print(old)   
-    #neuronExcitingWords_AllReviews
-    #hmap.html_heatmap(ws,scs,text_banner.text)
+#hmap.html_heatmap(highlight_source.data['wc_words'],highlight_source.data['scores'],text_banner.text)
 
 
 def get_wc_colourGroups(rawInput_source):
@@ -175,9 +170,9 @@ def update_source(attrname, old, new):
     elif gate_value=="output_gate":
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
 
+    words_to_be_highlighted = [i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
-
-
+    
 
 
     
@@ -218,7 +213,7 @@ clustering_selections = get_clustering_selections(algorithm_neurons)
 #Raw input clustering
 rawInput_selections = get_rawInput_selections()
 
-tools = "pan,wheel_zoom,box_zoom,reset,tap"
+tools = "pan,wheel_zoom,box_zoom,reset,hover"
 
 #Dimensionality reduction
 labels = None 
@@ -230,7 +225,9 @@ project_plot = figure(title=projection_selections.value + performance_metric[0] 
 scatter_tap = project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
 project_plot.xaxis.axis_label = 'Dim 1'
 project_plot.yaxis.axis_label = 'Dim 2'
-taptool = project_plot.select(dict(type=TapTool))[0]
+taptool = TapTool()
+project_plot.add_tools(taptool)
+
 
 #Input text
 text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
@@ -246,10 +243,46 @@ label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[lis
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source)
 wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
+
 #if wc from "out" gate
 words_to_be_highlighted = [i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
+highlight_source = ColumnDataSource(dict(scores=[]))
+tap_source = ColumnDataSource(dict(wc_words=words_to_be_highlighted,lrp=totalLRP[rawInput_selections.value]['lrp'].tolist()))
 
-proj_source.data = dict(x=X[:,0],y=X[:,1],z=X_colors)
+
+taptool.callback = CustomJS(args=dict(source=tap_source,high=highlight_source,div=text_banner),
+code="""
+     cell = cb_obj.selected['1d']['indices'][0]
+     var d = high.data;
+     d['scores'] = []
+     e = []
+     for(var i=0; i<source.data['lrp'].length; i++){
+        d['scores'].push(Math.abs(source.data['lrp'][i][cell]))
+     }
+     dmax = Math.max.apply(Math, d['scores']); 
+     for(var i=0; i<source.data['lrp'].length; i++){
+        e.push((d['scores'][i]/dmax)*1e10)
+     }
+     console.log(e)
+     high.change.emit();
+     ws = div.text.split(" ");
+     ws_out = [];
+     for(var j=0; j<ws.length; j++){
+        w_idx = source.data['wc_words'].indexOf(ws[j])
+        if (w_idx>=0){
+           ws_out.push("<span style='background-color: rgba(255,0,0,e[w_idx])'>"+ws[j]+"</span>")
+        }
+        else {
+           ws_out.push(ws[j])
+        }
+     }
+     div.text = ws_out.join(" ")
+
+     """)
+
+
+    
+
 img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=600)
 ydr = Range1d(start=0, end=600)
@@ -268,8 +301,6 @@ projection_selections.on_change('value', update_source)
 for attr in clustering_selections:
     attr.on_change('value', update_source)
 rawInput_selections.on_change('value', update_source)
-scatter_tap.data_source.on_change('selected', tap_callback)
-
 
 gp = layout([project_plot, wc_plot, widgetbox(gate_selections,projection_selections,rawInput_selections,clustering_selections[0],clustering_selections[1],text_0,text_set,label_banner)],
             [text_banner],
