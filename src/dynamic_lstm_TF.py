@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames
+from IMDB_dataset.textData import filenames
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -52,14 +52,15 @@ def config():
     save_path = "./sacred_models/"
     tensorboard_dir = "./sacred_models/tf_logs/"
     run_id = "runID_newOutput"
-    n_words = 10000
-    dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
+    n_words = 10000 #89527 
+    dictionary = "/home/yannis/Desktop/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
     ckp_path = None #"./sacred_models/ckp/"
     internals = "all"    
     save_mode = "pickle"
-    n_epoch = 10
+    n_epoch = 2
     test_size = 0.05 # -1 for whole test set
+    embedding_layer = 1
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
@@ -78,13 +79,17 @@ def config():
 
     
     
-def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,ckp_path=None):
+def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path=None):
 
-    # Network building
-    net = tflearn.input_data([None,sequence_length])
-    net = tflearn.embedding(net, input_dim=10000, output_dim=10)
     layer_outputs = dict()
-    prev_incoming = net
+   
+    # Network building
+    if embedding_layer:
+        net = tflearn.input_data([None,sequence_length]) #embedding_dim
+        ebd_output = tflearn.embedding(net, input_dim=n_words, output_dim=embedding_dim, name='embedding')
+        n = "embedding_output"
+        layer_outputs[n] = ebd_output
+        prev_incoming = ebd_output
     
     for k in range(len(net_arch_layers)):
         key = net_arch_layers[k]
@@ -126,17 +131,19 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
 
 @ex.automain
-def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,internals,save_mode,test_size):
+def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,show_metric,batch_size,run_id,db,n_words,dictionary,embedding_dim,tensorboard_dir,ckp_path,embedding_layer,internals,save_mode,test_size):
 
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-
-    
+    """
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
     trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed=seed,filenames=filenames,n_words=n_words,dictionary=dictionary,test_size=test_size,save_test="save_test")
-    
+    """
+    with open('trainValidtestNew.pickle','rb') as handle:
+        (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict) = pickle.load(handle)
+    """
     d = test_dict        
     if save_mode=="pickle":
         with open(save_dir+"test_data_input.pickle", "wb") as f:
@@ -145,21 +152,20 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
         with open(save_dir+"test_data_input.json", "w") as f:
             json.dump(d, f)
     print("Exported test data dictionary...")
-    """ 
-    
-    with open('trainValidtest.pickle','rb') as handle:
-        (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd) = pickle.load(handle)
     """
+     
+#    with open('trainValidtestNew.pickle','wb') as handle:
+#        pickle.dump((trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict),handle)
     
     print("Training model...")
     
-    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,ckp_path)
+    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path)
     model.fit(trainX, trainY, validation_set=(validX, validY), n_epoch=n_epoch, show_metric=show_metric, batch_size=batch_size)
-    
+    """
     print("Evaluating trained model on test set...")
-    score = model.evaluate(testX,testY,batch_size=maxlen)
+    score = model.evaluate(testX,testY)
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
-    
+    """
     
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
@@ -174,18 +180,25 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     input_files = filenames_valid
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"valid_")
     """
+    
     feed = testX
     input_files = filenames_test_sfd
+    """
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
-    print("Exported internals...")
     
+    print("Exported internals...")
+    """
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
     print("Saved model...")    
-    
+   
     predicted_tgs = model.predict_label(feed)
-#    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
+    
+    LRP = lrp.lrp_full(model,embedding_layer,n_words,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,save_dir+"test_model_internals_ebd."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
+
+
+    
     with open(save_dir+"lstm_predictions.pickle","wb") as handle:
         pickle.dump(predicted_tgs,handle)
     print("Finished with LRP and related data...now exiting...")

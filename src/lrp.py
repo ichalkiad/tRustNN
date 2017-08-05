@@ -201,6 +201,24 @@ def get_gates_out_t(in_concat,b,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2)
      return i_t,g_t,f_t
 
 
+def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,eps,delta,debug):
+#first_lstm_output : the lstm layer that connects to the embedding
+     
+        layer = tflearn.variables.get_layer_variables_by_name(emb_name)
+        W_ebd = model.get_weights(layer[0])
+        zi = feed
+        zj = lstm_first_input #(300,)
+        W = W_ebd
+        b = np.zeros((zj.shape[0]))
+        Rout = lrp_lstm 
+        N = n_words
+        
+        lrp_ebd = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
+
+        return lrp_ebd
+
+
+ 
 
 def lrp_fullyConnected(model,fc_name,last_lstm_output,fc_out,lrp_mask,d,T,classes,eps,delta,debug):
 #last_lstm_output : the lstm layer that connects to the fully connected
@@ -271,25 +289,27 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
         return lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
 
    
-def load_intermediate_outputs(input_filename,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None):
+def load_intermediate_outputs(input_filename,embedding_json,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None):
 #layer_name is currently not needed - for networks with more layers we will need it, as the json structure will change
 
      
      keys_hidden,data_hidden = data_format.get_data(lstm_hidden_json)
      keys_cell,data_cell = data_format.get_data(lstm_cell_json)
      keys_fc,data_fc = data_format.get_data(fc_json)
-          
+     keys_ebd,data_ebd = data_format.get_data(embedding_json)
+     
      lstm_hidden = data_hidden[input_filename]
      lstm_cell   = data_cell[input_filename]
      fc_out      = data_fc[input_filename]
+     embedding_output_data = data_ebd[input_filename]
      
      d = lstm_cell.shape[1]
      
-     return fc_out,lstm_hidden,lstm_cell,d
+     return fc_out,lstm_hidden,lstm_cell,embedding_output_data,d
 
 
 
-def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,target_class,T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
+def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,single_input_data,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,ebd_json,target_class,T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
 
         
     with model.session.as_default():
@@ -297,24 +317,34 @@ def lrp_single_input(model,layer_names,input_filename,single_input_data,eps,delt
         lrp_mask = np.zeros((classes))
         lrp_mask[target_class] = 1.0
 
-        fc_out,lstm_hidden,lstm_cell,d = load_intermediate_outputs(input_filename,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None)
+        fc_out,lstm_hidden,lstm_cell,embedding_output_data,d = load_intermediate_outputs(input_filename,ebd_json,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None)
         
         #LRP through fc layer
         fc_name = "fc"
         lrp_fc = lrp_fullyConnected(model,fc_name,lstm_hidden,fc_out,lrp_mask,d,T,classes,eps,delta,debug)
 
-        #LRP through lstm layer
-        lstm_name = "lstm"        
-        feed = single_input_data
-        lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
+        #LRP through embedding layer if needed
+        if embedding_layer:
+            lstm_name = "lstm"        
+            feed = embedding_output_data
+            lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
+           
+            emb_name = "embedding"
+            feed = single_input_data
+            lrp_input = lrp_embedding(model,emb_name,n_words,feed,embedding_output_data,np.sum(lstm_lrp_x,axis=0),eps,delta,debug)
+
+        else:
+            #LRP through lstm layer
+            lstm_name = "lstm"        
+            feed = single_input_data
+            lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
+
+
+    return lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
+
 
         
-
-    return lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
-
-
-        
-def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
+def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
 
     LRP = collections.OrderedDict()
     totalLRP = collections.OrderedDict()
@@ -330,7 +360,7 @@ def lrp_full(model,input_filename,net_arch,net_arch_layers,test_data_json,fc_out
          kdata = np.array(list(data_test[k].values()))
          T = kdata.shape
          
-         lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
+         lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
          lrp_neurons = get_topLRP_cells(lrp_fc,k,save_dir,topN)
          reviewLRP_data = get_PosNegNeurons_dict(i,predictions,lrp_neurons)

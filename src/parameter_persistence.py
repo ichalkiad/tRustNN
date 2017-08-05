@@ -13,6 +13,7 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
     lstm_states  = collections.OrderedDict()
     lstm_hidden  = collections.OrderedDict()  ## same as lstm_outputs, but latter includes the unncessary zeros at the end
     fc_outputs   = collections.OrderedDict()
+    ebd_outputs = collections.OrderedDict()
     
     with model.session.as_default():
             
@@ -54,10 +55,18 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                data_out = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed})
                for i in range(len(input_files)):
                    fc_outputs[input_files[i]] = data_out[i,:].tolist()
-               
+
+           keys = [k for k in list(layer_outputs.keys()) if "embedding" in k]
+           for k in keys:
+               data_out = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed})
+               for i in range(len(input_files)):
+                   ebd_outputs[input_files[i]] = data_out[i,:].tolist()
+                   
     if save_mode=="json":
         with open(save_dir+"model_internals_fc.json", 'w') as f:
             json.dump(fc_outputs, f)
+        with open(save_dir+"model_internals_ebd.json", 'w') as f:
+            json.dump(ebd_outputs, f)
         #with open(save_dir+"model_internals_lstm_outputs.json", 'w') as f:
         #    json.dump(lstm_outputs, f)
         with open(save_dir+"model_internals_lstm_hidden.json", 'w') as f:
@@ -67,6 +76,8 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
     elif save_mode=="pickle":
         with open(save_dir+"model_internals_fc.pickle", 'wb') as f:
             pickle.dump(fc_outputs, f)
+        with open(save_dir+"model_internals_ebd.pickle", 'wb') as f:
+            pickle.dump(ebd_outputs, f)
         #with open(save_dir+"model_internals_lstm_outputs.pickle", 'wb') as f:
         #    pickle.dump(lstm_outputs, f)
         with open(save_dir+"model_internals_lstm_hidden.pickle", 'wb') as f:

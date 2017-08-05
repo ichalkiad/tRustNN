@@ -28,6 +28,7 @@ def lrp_linear(hin, w, b, hout, Rout, bias_nb_units, eps, bias_factor, debug=Fal
     """
     
     sign_out = np.where(hout[na,:]>=0, 1., -1.) # shape (1, M)
+
     numer = np.zeros(w.shape)
     """
     for j in range(w.shape[1]):
