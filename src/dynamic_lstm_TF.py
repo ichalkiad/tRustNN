@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData import filenames
+from IMDB_dataset.textData_cluster import filenames
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -81,10 +81,11 @@ def config():
 def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,ckp_path=None):
 
     # Network building
-    net = tflearn.input_data([None,sequence_length,embedding_dim])
+    net = tflearn.input_data([None,sequence_length])
+    net = tflearn.embedding(net, input_dim=10000, output_dim=10)
     layer_outputs = dict()
     prev_incoming = net
-
+    
     for k in range(len(net_arch_layers)):
         key = net_arch_layers[k]
         value = net_arch[key]
@@ -134,7 +135,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed,filenames,n_words,dictionary,test_size,save_test="save_test")
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed=seed,filenames=filenames,n_words=n_words,dictionary=dictionary,test_size=test_size,save_test="save_test")
     
     d = test_dict        
     if save_mode=="pickle":
@@ -184,7 +185,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     print("Saved model...")    
     
     predicted_tgs = model.predict_label(feed)
-    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
+#    LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
     with open(save_dir+"lstm_predictions.pickle","wb") as handle:
         pickle.dump(predicted_tgs,handle)
     print("Finished with LRP and related data...now exiting...")

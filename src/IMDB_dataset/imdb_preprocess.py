@@ -65,7 +65,7 @@ def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='po
 
 
 def remove_unk(x,n_words):
-    return [[1 if w >= n_words else w for w in sen] for sen in x]
+    return [[1 if w >= n_words else w for w in sen] for sen in x]  
 
 
 
@@ -80,10 +80,6 @@ def extract_features_w2v(filenames,seed,test_size=0.05,save_test=None):
     X_valid, X_test, y_valid, y_test = train_test_split(filenames_valid, np.zeros(len(filenames_valid)),test_size=0.5,random_state=seed)
     filenames_valid = X_valid
     filenames_test  = X_test
-
-    print(len(filenames_train))
-    print(len(filenames_valid))
-    print(len(filenames_test))
 
     
     # Load Google's pre-trained Word2Vec model.
@@ -120,7 +116,7 @@ def extract_features_w2v(filenames,seed,test_size=0.05,save_test=None):
 
 
 
-def extract_features(filenames,seed,test_size,n_words,dictionary):
+def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
     
     random.shuffle(filenames)
 
@@ -136,11 +132,7 @@ def extract_features(filenames,seed,test_size,n_words,dictionary):
     with open(dictionary, 'rb') as handle:
          d = pickle.load(handle)
 
-    X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),
-                                                          test_size=0.1, random_state=seed)
-    filenames_train = X_train
-    filenames_valid = X_valid
-    
+  
     testX = []
     for i in filenames_test:
         testX.append(Path(i).read_text())
@@ -152,17 +144,23 @@ def extract_features(filenames,seed,test_size,n_words,dictionary):
         validX.append(Path(i).read_text())
 
     vectorizer = we.CountVectorizer(vocabulary=d)
-    testX_tokenized = vectorizer.fit_transform(testX).toarray()
+    testX_tokenized = vectorizer.fit_transform(testX)#.toarray()
     del testX
     testX = remove_unk(testX_tokenized,n_words)
-    trainX_tokenized = vectorizer.fit_transform(trainX).toarray()
+    trainX_tokenized = vectorizer.fit_transform(trainX)#.toarray()
     del trainX
     trainX = remove_unk(trainX_tokenized,n_words)
-    validX_tokenized = vectorizer.fit_transform(validX).toarray()
+    validX_tokenized = vectorizer.fit_transform(validX)#.toarray()
     del validX
     validX = remove_unk(validX_tokenized,n_words)
 
-    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test
+    test_dict = None
+    if save_test!=None:
+        test_dict = get_input_json(filenames_test)
+
+
+
+    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict
 
 
 
@@ -217,7 +215,8 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
 def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,test_size=0.1,save_test=None):
 
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict = extract_features_w2v(filenames,seed,test_size,save_test)
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict = extract_features(filenames,seed,test_size,save_test,n_words,dictionary)
+    
     trainX,validX,testX,maxlen = pad_sequences(trainX, validX, testX, value=0.)
     trainX = np.array(trainX)
     validX = np.array(validX)
