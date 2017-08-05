@@ -34,6 +34,7 @@ class NLTKPreprocessor(BaseEstimator, TransformerMixin):
 
     def tokenize(self, document):
         re.sub('<br />','',document)
+        re.sub('br','',document)
         # Break the document into sentences
         for sent in sent_tokenize(document):
             # Break the sentence into part of speech tagged tokens

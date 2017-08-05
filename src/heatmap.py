@@ -51,7 +51,7 @@ def getRGB (c_tuple):
 
      
 def span_word (word, score, colormap):
-  
+    print("<span style=\"background-color:"+getRGB(colormap(score))+"\">"+word+"</span>")
     return "<span style=\"background-color:"+getRGB(colormap(score))+"\">"+word+"</span>"
 
 
@@ -64,7 +64,6 @@ def html_heatmap (words, scores, text_banner, cmap_name="bwr"):
     min_s     = min(scores)
     
     for idx, w in enumerate(words):
-        
         score = rescale_score_by_abs(scores[idx], max_s, min_s)
         re.sub(w, span_word(w, score, colormap), text_banner)
 

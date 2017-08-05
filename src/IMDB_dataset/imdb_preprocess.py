@@ -37,36 +37,42 @@ def get_input_json(filenames,w2v=None):
 
 
 
-def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='post', truncating='post', value=0.):
+def pad_sequences(trainX, validX, testX, maxlen=None, dtype='int32', padding='post', truncating='post', value=0):
 
     lengthsTr = np.max([len(s) for s in trainX])
     lengthsVd = np.max([len(s) for s in validX])
     lengthsTe = np.max([len(s) for s in testX])
-    elem_length = len(trainX[0][0])
-    pads = np.zeros((elem_length,))
 
     if maxlen is None:
-        maxlen = np.max(np.array([lengthsTr,lengthsVd,lengthsTe]))
+            maxlen = np.max(np.array([lengthsTr,lengthsVd,lengthsTe]))
+
+    
+    if isinstance(trainX[0][0],np.ndarray):
+        elem_length = len(trainX[0][0])
+        pads = np.zeros((elem_length,))
+    else:
+        pads = value
 
     for s in trainX:
-        if len(s) < maxlen:
-           while not len(s)==maxlen:
-               s.append(pads)
+       if len(s) < maxlen:
+          while not len(s)==maxlen:
+                s.append(pads)
     for s in validX:
-        if len(s) < maxlen:
-           while not len(s)==maxlen:
-               s.append(pads)
+       if len(s) < maxlen:
+          while not len(s)==maxlen:
+                s.append(pads)
     for s in testX:
-        if len(s) < maxlen:
-           while not len(s)==maxlen:
-               s.append(pads)           
+       if len(s) < maxlen:
+          while not len(s)==maxlen:
+                s.append(pads)           
+
     return trainX,validX,testX,maxlen
 
 
-
+"""
 def remove_unk(x,n_words):
     return [[1 if w >= n_words else w for w in sen] for sen in x]  
-
+"""
 
 
 def extract_features_w2v(filenames,seed,test_size=0.05,save_test=None):
@@ -115,7 +121,25 @@ def extract_features_w2v(filenames,seed,test_size=0.05,save_test=None):
     return train_X_w2v,valid_X_w2v,test_X_w2v,filenames_train,filenames_valid,filenames_test,test_dict
 
 
+def tokenize_and_remove_unk(X,n_words,dictionary):
+#Transform list of lists of tokenized documents to list of lists of tokens, each token being the index of the word in the dictionary. Tokens appear in the same order with corresponding words in documents.
+    
+    X_tokenized = []
+    for doc in X:
+        toks = []
+        for w in doc:
+            if w in list(dictionary.keys()):
+                if dictionary[w]<=n_words:
+                    toks.append(dictionary[w])
+                else:
+                    toks.append(1)
+            else:
+                    toks.append(1)
+        X_tokenized.append(toks)
 
+    return X_tokenized
+
+                    
 def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
     
     random.shuffle(filenames)
@@ -128,7 +152,6 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
     filenames_valid = X_valid
     filenames_test  = X_test
 
-
     with open(dictionary, 'rb') as handle:
          d = pickle.load(handle)
 
@@ -136,29 +159,39 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
     testX = []
     for i in filenames_test:
         testX.append(Path(i).read_text())
+    
     trainX = []
     for i in filenames_train:
         trainX.append(Path(i).read_text())
+    
     validX = []
     for i in filenames_valid:
         validX.append(Path(i).read_text())
 
+    """
     vectorizer = we.CountVectorizer(vocabulary=d)
-    testX_tokenized = vectorizer.fit_transform(testX)#.toarray()
+    testX_tokenized = vectorizer.transform(testX)
     del testX
     testX = remove_unk(testX_tokenized,n_words)
-    trainX_tokenized = vectorizer.fit_transform(trainX)#.toarray()
+    trainX_tokenized = vectorizer.transform(trainX)
     del trainX
     trainX = remove_unk(trainX_tokenized,n_words)
-    validX_tokenized = vectorizer.fit_transform(validX)#.toarray()
+    validX_tokenized = vectorizer.transform(validX)
     del validX
     validX = remove_unk(validX_tokenized,n_words)
+    """
+    preprocessor = we.NLTKPreprocessor()
+    #Tokenization - train_X_tokenized is a list containing lists of words for each review in the passed argument
+    train_X_tokenized = preprocessor.transform(filenames_train)
+    valid_X_tokenized = preprocessor.transform(filenames_valid)
+    test_X_tokenized  = preprocessor.transform(filenames_test)
+    trainX = tokenize_and_remove_unk(train_X_tokenized,n_words,d)
+    testX = tokenize_and_remove_unk(test_X_tokenized,n_words,d)
+    validX = tokenize_and_remove_unk(valid_X_tokenized,n_words,d)
 
     test_dict = None
     if save_test!=None:
         test_dict = get_input_json(filenames_test)
-
-
 
     return trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict
 
@@ -216,6 +249,7 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,test_size=0.1,save_test=None):
 
     trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict = extract_features(filenames,seed,test_size,save_test,n_words,dictionary)
+#    extract_features_w2v(filenames,seed,test_size,save_test=None)
     
     trainX,validX,testX,maxlen = pad_sequences(trainX, validX, testX, value=0.)
     trainX = np.array(trainX)
