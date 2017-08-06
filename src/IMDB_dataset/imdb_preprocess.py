@@ -147,8 +147,22 @@ def tokenize_and_remove_unk(X,n_words,dictionary):
 
     return X_tokenized
 
-                    
-def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
+
+def get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary):
+
+    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
+    w2v   = dict(zip(model.index2word, model.syn0))
+    inv_dict = {v: k for k, v in dictionary.items()}
+    
+    ebd_init = np.zeros((n_words,embedding_dim))
+    
+    for i in range(n_words):
+        ebd_init[i,:] = w2v[inv_dict[i]]
+
+    return ebd_init    
+
+
+def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embedding_dim):
     
     random.shuffle(filenames)
 
@@ -162,8 +176,9 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
 
     with open(dictionary, 'rb') as handle:
          d = pickle.load(handle)
-
-  
+   
+    embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary)
+    
     testX = []
     for i in filenames_test:
         testX.append(Path(i).read_text())
@@ -204,7 +219,7 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
         test_dict,test_dict_token = get_input_json(filenames_test,w2v=None,token=1,feed=testX)
         
         
-    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token
+    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token,embedding_initMat
 
 
 
@@ -257,9 +272,9 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
 
 
-def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,test_size=0.1,save_test=None):
+def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,embedding_dim=300,test_size=0.1,save_test=None):
 
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token = extract_features(filenames,seed,test_size,save_test,n_words,dictionary)
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token,embedding_initMat = extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embedding_dim)
 #    extract_features_w2v(filenames,seed,test_size,save_test=None)
     
     trainX,validX,testX,maxlen = pad_sequences(trainX, validX,testX, value=0.)
@@ -269,4 +284,4 @@ def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,test_size=0.
     
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
-    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen,test_dict,test_dict_token
+    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen,test_dict,test_dict_token,embedding_initMat

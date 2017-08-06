@@ -79,18 +79,26 @@ def config():
 
     
     
-def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path=None):
+def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path=None,embedding_initMat=None):
 
     layer_outputs = dict()
    
     # Network building
     if embedding_layer:
-        net = tflearn.input_data([None,sequence_length]) #embedding_dim
-        ebd_output = tflearn.embedding(net, input_dim=n_words, output_dim=embedding_dim, name='embedding')
+        net = tflearn.input_data([None,sequence_length]) 
+        
+        W = tf.Variable(tf.constant(0.0, shape=[n_words, embedding_dim]), trainable=True, name="W")
+        embedding_placeholder = tf.placeholder(tf.float32, [n_words, embedding_dim])
+        embedding_init = W.assign(embedding_placeholder)
+        ebd_output = tflearn.embedding(net, input_dim=n_words, output_dim=embedding_dim, weights_init=W, name='embedding')
+
         n = "embedding_output"
         layer_outputs[n] = ebd_output
         prev_incoming = ebd_output
-    
+    else:
+        net = tflearn.input_data([None,sequence_length],embedding_dim)
+        prev_incoming = net
+
     for k in range(len(net_arch_layers)):
         key = net_arch_layers[k]
         value = net_arch[key]
@@ -127,6 +135,10 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
 
     model = tflearn.DNN(net, tensorboard_verbose,tensorboard_dir=tensorboard_dir,checkpoint_path=ckp_path)
 
+    if embedding_layer:
+        model.session.run(embedding_init, feed_dict={embedding_placeholder: embedding_initMat})
+
+    
     return model,layer_outputs
 
 
@@ -139,7 +151,8 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token = imdb_pre.preprocess_IMDBdata(seed=seed,filenames=filenames,n_words=n_words,dictionary=dictionary,test_size=test_size,save_test="save_test")
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat = imdb_pre.preprocess_IMDBdata(seed=seed,filenames=filenames,n_words=n_words,dictionary=dictionary,embedding_dim=embedding_dim,test_size=test_size,save_test="save_test")
+    
     """
     with open('trainValidtestNew.pickle','rb') as handle:
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token) = pickle.load(handle)
@@ -162,11 +175,11 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     print("Exported test data token dictionary...")
     
     with open('trainValidtestNew.pickle','wb') as handle:
-        pickle.dump((trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token),handle)
+        pickle.dump((trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat),handle)
     
     print("Training model...")
     
-    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path)
+    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path,embedding_initMat)
     model.fit(trainX, trainY, validation_set=(validX, validY), n_epoch=n_epoch, show_metric=show_metric, batch_size=batch_size)
     """
     print("Evaluating trained model on test set...")

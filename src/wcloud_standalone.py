@@ -74,7 +74,7 @@ def config():
 
 
 
-def get_wcloud(LRP,k,save_dir,color_dict=None,gate=None,text=None):
+def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
 
      save_filename = re.sub('/', '_', k[-18:-4])+"_word_cloud.png"
      try:
@@ -158,7 +158,7 @@ def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
        os.makedirs(save_dir)
-    if os.path.isfile(save_dir+"LRP.pickle")==False: 
+    if os.path.isfile(save_dir+"LRP.pickle")==False:   ###ADD EMBEDDING LAYER CHANGES
 
         """
         _,_,testX,_,_,_,_,_,filenames_test_sfd,_ = imdb_pre.preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words,dictionary)
@@ -178,12 +178,9 @@ def generate_wcloud(seed,net_arch,net_arch_layers,save_path,tensorboard_verbose,
 
         LRP = lrp.lrp_full(model,input_files,net_arch,net_arch_layers,feed_input_json,save_dir+internal_fc_json,save_dir+internal_hidden_json,save_dir+internal_state_json,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
 
-        """
-        print(heatmap.html_heatmap(LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['words'], LRP['/home/yannis/Desktop/tRustNN/aclImdb/test/pos/127_10.txt']['scores'] ))
-        """
     else:
-        with open(save_dir+"LRP.pickle","rb") as handle:
-            (LRP,predicted_tgs) = pickle.load(handle)
+       with open(load_dir+"exploratoryDataFull.pickle", 'rb') as f:
+            _,_,_,_,_,LRP = pickle.load(f)
         
 
     kkeys = list(LRP.keys())

@@ -22,10 +22,6 @@ from wcloud_standalone import get_wcloud
 import heatmap as hmap
 
 
-
-#hmap.html_heatmap(highlight_source.data['wc_words'],highlight_source.data['scores'],text_banner.text)
-
-
 def get_wc_colourGroups(rawInput_source):
 
     words  = rawInput_source.data['w']
@@ -124,43 +120,45 @@ def update_source(attrname, old, new):
         text_set.text = "Internal state clustering - selected review: Clusters representation of input review at every timestep as learned by the LSTM layer." 
         lstm_hidVal = np.array(lstm_hidden[rawInput_selections.value])
         x_pr,performance_metric = dim_reduction.project(np.transpose(lstm_hidVal), algorithm, knn, labels)
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(data=np.transpose(lstm_hidVal),algorithm=algorithm_cl_neurons,n_clusters=n_clusters,review=None,neuronData=None,mode="nn")
-        w = [i for i in range(lstm_hidVal.shape[0])]
+        cluster_labels, colors, _ = clustering.apply_cluster(data=np.transpose(lstm_hidVal),algorithm=algorithm_cl_neurons,n_clusters=n_clusters,review=None,neuronData=None,mode="nn")
+    
     elif algorithm_cl_neurons=="DBSCAN - all reviews" or algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
         if algorithm_cl_neurons=="DBSCAN - all reviews":
             text_set.text = "DBSCAN - all reviews: Clusters neurons based on how related their most activating words are. List of activating words generated from all reviews."
         elif algorithm_cl_neurons== "AgglomerativeClustering - all reviews":
             text_set.text = "AgglomerativeClustering - all reviews: Hierarchical clustering of neurons based on how related their most activating words are. List of activating words generated from all reviews."
         neuronData = similarityMatrix_AllReviews
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
-        w = neuronExcitingWords_AllReviews
+        cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
+    
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         text_set.text = "Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative."
         neuronData = neuron_types
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
-        w = neuronExcitingWords_AllReviews
+        cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
+    
     else:
         if algorithm_cl_neurons=="KMeans - selected gate":
             text_set.text = "KMeans: Clusters neurons based on their gate values after training."
         elif algorithm_cl_neurons=="DBSCAN - selected review":
             text_set.text = "DBSCAN - selected review: Clusters neurons based on how related their most activating words are. List of activating words generated from seleceted review."
         neuronData = similarityMatrix_PerReview
-        cluster_labels, colors, cl_spectral = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
-        w = neuronExcitingWords_AllReviews
-   
+        cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
+
+        
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
+    """
     if performance_metric!=(None,None):
         project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
     else:
         project_plot.title.text = algorithm
-       
+    """
+    
     #update raw input
     text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
     text_banner.text = open(text_src,"r").read()
     label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
 
-    text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
-    w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
+    text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw) ###LOADS EMBEDDINGS HERE
+    w2v_labels, w2v_colors, _ = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
     rawInput_source.data = dict(z=w2v_colors, w=text_words)
     color_dict = get_wc_colourGroups(rawInput_source)
     if gate_value=="input_gate":
@@ -197,9 +195,10 @@ with open(load_dir+"lstm_predictions.pickle","rb") as handle:
     predicted_tgs = pickle.load(handle)
 with open(load_dir+"exploratoryDataFull.pickle", 'rb') as f:
     excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP = pickle.load(f)
-
-neuronExcitingWords_AllReviews = list((excitingWords_fullSet.values()))
+    
+#neuronExcitingWords_AllReviews = list((excitingWords_fullSet.values()))
 _,lstm_hidden = data_format.get_data(load_dir+"test_model_internals_lstm_hidden.pickle")
+_,learned_embeddings = data_format.get_data(load_dir+"test_model_internals_ebd.pickle")
 
 #Get preset buttons' selections
         
@@ -219,9 +218,10 @@ tools = "pan,wheel_zoom,box_zoom,reset,hover"
 labels = None 
 data_pr = data[lstm_layer_name][gate_selections.value]
 X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, labels=labels)
-X_cluster_labels, X_colors, X_cl_spectral = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value),mode="nn")
+X_cluster_labels, X_colors, _ = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value),mode="nn")
 proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors))
-project_plot = figure(title=projection_selections.value + performance_metric[0] + performance_metric[1],tools=tools,plot_width=300, plot_height=300)
+#  + performance_metric[0] + performance_metric[1]
+project_plot = figure(title=projection_selections.value,tools=tools,plot_width=300, plot_height=300)
 scatter_tap = project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
 project_plot.xaxis.axis_label = 'Dim 1'
 project_plot.yaxis.axis_label = 'Dim 2'
@@ -230,8 +230,8 @@ project_plot.add_tools(taptool)
 
 
 #Input text
-text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)
-w2v_labels, w2v_colors, w2v_cl_spectral = clustering.apply_cluster(text_data,algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[1].value),mode="wc")
+text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)  ###LOADS EMBEDDINGS HERE
+w2v_labels, w2v_colors, _ = clustering.apply_cluster(text_data,algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[1].value),mode="wc")
 rawInput_source = ColumnDataSource(dict(z=w2v_colors,w=text_words))
 
 
@@ -241,14 +241,15 @@ label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[lis
 
 
 #WordCloud
-color_dict = get_wc_colourGroups(rawInput_source)
+color_dict = get_wc_colourGroups(rawInput_source) #Colors based on similarity in embedding space
 wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
 
-#if wc from "out" gate
-words_to_be_highlighted = [i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
+#ONLY if wc from "out" gate?????
+words_to_be_highlighted = list(set(wc_words).intersection(totalLRP[rawInput_selections.value]['words']))
+print(words_to_be_highlighted) #[i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
 highlight_source = ColumnDataSource(dict(scores=[]))
 tap_source = ColumnDataSource(dict(wc_words=words_to_be_highlighted,lrp=totalLRP[rawInput_selections.value]['lrp'].tolist()))
-
+#totalLRP : how relevant is each LSTM neuron
 
 taptool.callback = CustomJS(args=dict(source=tap_source,high=highlight_source,div=text_banner),
 code="""
@@ -257,20 +258,30 @@ code="""
      d['scores'] = []
      e = []
      for(var i=0; i<source.data['lrp'].length; i++){
-        d['scores'].push(Math.abs(source.data['lrp'][i][cell]))
+        d['scores'].push(source.data['lrp'][i][cell])
      }
-     dmax = Math.max.apply(Math, d['scores']); 
-     for(var i=0; i<source.data['lrp'].length; i++){
-        e.push((d['scores'][i]/dmax)*1e10)
-     }
-     console.log(e)
      high.change.emit();
      ws = div.text.split(" ");
      ws_out = [];
      for(var j=0; j<ws.length; j++){
         w_idx = source.data['wc_words'].indexOf(ws[j])
         if (w_idx>=0){
-           ws_out.push("<span style='background-color: rgba(255,0,0,e[w_idx])'>"+ws[j]+"</span>")
+           if (d['scores'][w_idx]>0){
+              if (d['scores'][w_idx]<1){
+                 ws_out.push("<span style='background-color: rgba(255,0,0,d['scores'][w_idx])'>"+ws[j]+"</span>")
+              }
+              else {
+                 ws_out.push("<span style='background-color: rgba(255,0,0,0.98)'>"+ws[j]+"</span>")
+              }
+           }
+           if (d['scores'][w_idx]<0){
+              if (Math.abs(d['scores'][w_idx])<1){
+                 ws_out.push("<span style='background-color: rgba(0,255,0,Math.abs(d['scores'][w_idx]))'>"+ws[j]+"</span>")
+              }
+              else {
+                 ws_out.push("<span style='background-color: rgba(0,255,0,0.98)'>"+ws[j]+"</span>")
+              }
+           }  
         }
         else {
            ws_out.push(ws[j])
@@ -280,14 +291,20 @@ code="""
 
      """)
 
-
+"""
+     dmax = Math.max.apply(Math, d['scores']); 
+     for(var i=0; i<source.data['lrp'].length; i++){
+        e.push((d['scores'][i]/dmax)*1e10)
+     }
+     console.log(e)
+"""
     
 
 img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=600)
 ydr = Range1d(start=0, end=600)
 wc_plot = Plot(title=None, x_range=xdr, y_range=ydr, plot_width=500, plot_height=550, min_border=0)
-image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left", retry_attempts=3, retry_timeout=2500)
+image = ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left", retry_attempts=5, retry_timeout=1500)
 wc_plot.add_glyph(img_source, image)
 
 
