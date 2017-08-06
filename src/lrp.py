@@ -201,21 +201,32 @@ def get_gates_out_t(in_concat,b,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2)
      return i_t,g_t,f_t
 
 
-def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,eps,delta,debug):
+def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictionary,eps,delta,debug):
 #first_lstm_output : the lstm layer that connects to the embedding
      
         layer = tflearn.variables.get_layer_variables_by_name(emb_name)
         W_ebd = model.get_weights(layer[0])
-        zi = feed
-        zj = lstm_first_input #(300,)
+        z = (np.array(feed).astype(int))
+        nonz = np.array(np.nonzero(z)).flatten()
+        sequence_len = nonz.shape[0]
         W = W_ebd
-        b = np.zeros((zj.shape[0]))
-        Rout = lrp_lstm 
         N = n_words
-        
-        lrp_ebd = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
+        b = np.zeros((W.shape[1]))
+        Rout = lrp_lstm
+        ws = []
+        scores = []
+        for t in range(sequence_len):
+            zj = lstm_first_input[t,:]
+            zi = np.zeros((W.shape[0]))
+            zi[z[t]] = 1
+            R_t = Rout[t,:]
+            lrp_ebd = lrp_linear(zi, W, b, zj, R_t, N, eps, delta, debug)
+            ws.append(dictionary[z[t]])
+            scores.append(lrp_ebd[z[t]])
 
-        return lrp_ebd
+        LRP = collections.OrderedDict(words=ws,scores=scores)
+
+        return LRP
 
 
  
@@ -309,7 +320,7 @@ def load_intermediate_outputs(input_filename,embedding_json,fc_json,lstm_hidden_
 
 
 
-def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,single_input_data,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,ebd_json,target_class,T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
+def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,single_input_data,data_token,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class,T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
 
         
     with model.session.as_default():
@@ -330,8 +341,8 @@ def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,si
             lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
            
             emb_name = "embedding"
-            feed = single_input_data
-            lrp_input = lrp_embedding(model,emb_name,n_words,feed,embedding_output_data,np.sum(lstm_lrp_x,axis=0),eps,delta,debug)
+            feed = data_token
+            lrp_input = lrp_embedding(model,emb_name,n_words,feed,embedding_output_data,lstm_lrp_x,dictionary,eps,delta,debug)
 
         else:
             #LRP through lstm layer
@@ -344,7 +355,7 @@ def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,si
 
 
         
-def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_layers,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
+def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_layers,test_data_token_json,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
 
     LRP = collections.OrderedDict()
     totalLRP = collections.OrderedDict()
@@ -354,13 +365,15 @@ def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_laye
    
     
     keys_test,data_test = data_format.get_data(test_data_json)
+    _,data_test_token = data_format.get_data(test_data_token_json)
     for i in range(len(list(keys_test))):
          k = list(keys_test)[i]
          kkeys = list(data_test[k].keys())
          kdata = np.array(list(data_test[k].values()))
          T = kdata.shape
-         
-         lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
+         data_token = np.array(data_test_token[k])
+
+         lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,data_token,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
          lrp_neurons = get_topLRP_cells(lrp_fc,k,save_dir,topN)
          reviewLRP_data = get_PosNegNeurons_dict(i,predictions,lrp_neurons)
@@ -368,9 +381,9 @@ def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_laye
          dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
          neuronWords_jsons.append(review_filename)
          similarityMatrix_PerReview[review_filename] = dstMat
-         w = collections.OrderedDict(words=kkeys,scores=[np.sum(lstm_lrp_x,axis=1)],size=len(kkeys))
-         LRP[k] = w
-         totalLRP[k] = collections.OrderedDict(words=kkeys,lrp=lrp_fc)
+
+         LRP[k] = lrp_input # contains LRP of input words
+         totalLRP[k] = collections.OrderedDict(words=kkeys,lrp=lrp_fc) # contains LRP halfway through network, i.e. LRP of LSTM neurons
 
     neuron_types = get_NeuronType(reviewLRP_data)
     excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)

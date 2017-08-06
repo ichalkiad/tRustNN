@@ -136,13 +136,13 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    """
+    
     print("Extracting features...")
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict = imdb_pre.preprocess_IMDBdata(seed=seed,filenames=filenames,n_words=n_words,dictionary=dictionary,test_size=test_size,save_test="save_test")
+    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token = imdb_pre.preprocess_IMDBdata(seed=seed,filenames=filenames,n_words=n_words,dictionary=dictionary,test_size=test_size,save_test="save_test")
     """
     with open('trainValidtestNew.pickle','rb') as handle:
-        (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict) = pickle.load(handle)
+        (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token) = pickle.load(handle)
     """
     d = test_dict        
     if save_mode=="pickle":
@@ -152,10 +152,17 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
         with open(save_dir+"test_data_input.json", "w") as f:
             json.dump(d, f)
     print("Exported test data dictionary...")
-    """
-     
-#    with open('trainValidtestNew.pickle','wb') as handle:
-#        pickle.dump((trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict),handle)
+    d = test_dict_token
+    if save_mode=="pickle":
+        with open(save_dir+"test_data_input_token.pickle", "wb") as f:
+            pickle.dump(d,f)
+    else:
+        with open(save_dir+"test_data_input_token.json", "w") as f:
+            json.dump(d, f)
+    print("Exported test data token dictionary...")
+    
+    with open('trainValidtestNew.pickle','wb') as handle:
+        pickle.dump((trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token),handle)
     
     print("Training model...")
     
@@ -183,19 +190,23 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     feed = testX
     input_files = filenames_test_sfd
-    """
+    
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
     
     print("Exported internals...")
-    """
+    
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
     print("Saved model...")    
    
     predicted_tgs = model.predict_label(feed)
-    
-    LRP = lrp.lrp_full(model,embedding_layer,n_words,input_files,net_arch,net_arch_layers,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,save_dir+"test_model_internals_ebd."+save_mode,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
+
+    with open(dictionary, 'rb') as handle:
+         dictionary_w = pickle.load(handle)
+    inv_dictionary_w = {v: k for k, v in dictionary_w.items()}
+       
+    LRP = lrp.lrp_full(model,embedding_layer,n_words,input_files,net_arch,net_arch_layers,save_dir+"test_data_input_token."+save_mode,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,save_dir+"test_model_internals_ebd."+save_mode,inv_dictionary_w,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
 
 
     
