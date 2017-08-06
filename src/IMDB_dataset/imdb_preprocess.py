@@ -11,7 +11,7 @@ import sys
 import re
 
 
-def get_input_json(filenames,w2v=None):
+def get_input_json(filenames,w2v=None,token=None,feed=None):
 
     if w2v==None:
         # Load Google's pre-trained Word2Vec model.
@@ -32,7 +32,14 @@ def get_input_json(filenames,w2v=None):
         for j in range(len(X_tokenized[i])):
             review[X_tokenized[i][j]] = X_w2v[i][j].tolist()
         data[filenames[i]] = review
-        
+
+    if token!=None:
+        data_feed = collections.OrderedDict()
+        for i in range(len(filenames)):
+            data_feed[filenames[i]] = feed[i]
+
+        return data,data_feed
+    
     return data
 
 
@@ -191,10 +198,13 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary):
     validX = tokenize_and_remove_unk(valid_X_tokenized,n_words,d)
 
     test_dict = None
+    test_dict_token = None
     if save_test!=None:
-        test_dict = get_input_json(filenames_test)
-
-    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict
+#        test_dict = get_input_json(filenames_test)
+        test_dict,test_dict_token = get_input_json(filenames_test,w2v=None,token=1,feed=testX)
+        
+        
+    return trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token
 
 
 
@@ -249,7 +259,7 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
 def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,test_size=0.1,save_test=None):
 
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict = extract_features(filenames,seed,test_size,save_test,n_words,dictionary)
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token = extract_features(filenames,seed,test_size,save_test,n_words,dictionary)
 #    extract_features_w2v(filenames,seed,test_size,save_test=None)
     
     trainX,validX,testX,maxlen = pad_sequences(trainX, validX,testX, value=0.)
@@ -257,7 +267,6 @@ def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,test_size=0.
     validX = np.array(validX)
     testX  = np.array(testX)
     
-    print(testX)
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     
-    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen,test_dict
+    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen,test_dict,test_dict_token
