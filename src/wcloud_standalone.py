@@ -92,6 +92,7 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
 
      ws = LRP[k]['words']
      scs = LRP[k]['scores']
+
      if gate=="in":
          wc = WordCloud(
             background_color="white",
@@ -132,7 +133,7 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
          weights=collections.OrderedDict()
          for i in range(len(ws)):
              if ws[i] not in out_words:
-                weights[ws[i]] = scs[i]*1e+80
+                weights[ws[i]] = scs[i]
          wc = WordCloud(
                  background_color="white",
                  max_words=2000,

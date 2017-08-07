@@ -32,7 +32,7 @@ def clustering(X, algorithm, n_clusters=2):
     bandwidth = cluster.estimate_bandwidth(X, quantile=0.3)
 
     # connectivity matrix for structured Ward
-    connectivity = kneighbors_graph(X, n_neighbors=10, include_self=False)
+    connectivity = kneighbors_graph(X, n_neighbors=5, include_self=False)
 
     # make connectivity symmetric
     connectivity = 0.5 * (connectivity + connectivity.T)
