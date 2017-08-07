@@ -9,7 +9,7 @@ import gensim
 import random
 import sys
 import re
-
+import pickle
 
 def get_input_json(filenames,w2v=None,token=None,feed=None):
 
@@ -137,7 +137,7 @@ def tokenize_and_remove_unk(X,n_words,dictionary):
         toks = []
         for w in doc:
             if w in list(dictionary.keys()):
-                if dictionary[w]<=n_words:
+                if dictionary[w]<n_words:
                     toks.append(dictionary[w])
                 else:
                     toks.append(1)
@@ -179,6 +179,9 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embed
 
     
     embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary)
+    with open("embedding_initMat.pickle", "wb") as f:
+            pickle.dump(embedding_initMat,f)
+
     
     testX = []
     for i in filenames_test:
