@@ -179,9 +179,6 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embed
 
     
     embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary)
-    with open("embedding_initMat.pickle", "wb") as f:
-            pickle.dump(embedding_initMat,f)
-
     
     testX = []
     for i in filenames_test:

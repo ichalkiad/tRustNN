@@ -160,6 +160,9 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat) = pickle.load(handle)
     
     """
+
+    with open(save_dir+"embedding_initMat.pickle", "wb") as f:
+            pickle.dump(embedding_initMat,f)
     d = test_dict        
     if save_mode=="pickle":
         with open(save_dir+"test_data_input.pickle", "wb") as f:
