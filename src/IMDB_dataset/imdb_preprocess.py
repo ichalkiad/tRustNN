@@ -155,10 +155,13 @@ def get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary):
     inv_dict = {v: k for k, v in dictionary.items()}
     
     ebd_init = np.zeros((n_words,embedding_dim))
-    
-    for i in range(n_words):
-        ebd_init[i,:] = w2v[inv_dict[i]]
-
+    w2v_w = list(w2v.keys())
+    for i in range(n_words):        
+        if inv_dict[i] in w2v_w:
+            ebd_init[i,:] = w2v[inv_dict[i]]
+        else:
+            ebd_init[i,:] = np.zeros((embedding_dim))
+            
     return ebd_init    
 
 
@@ -174,9 +177,7 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embed
     filenames_valid = X_valid
     filenames_test  = X_test
 
-    with open(dictionary, 'rb') as handle:
-         d = pickle.load(handle)
-   
+    
     embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary)
     
     testX = []
@@ -208,14 +209,13 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embed
     train_X_tokenized = preprocessor.transform(filenames_train)
     valid_X_tokenized = preprocessor.transform(filenames_valid)
     test_X_tokenized  = preprocessor.transform(filenames_test)
-    trainX = tokenize_and_remove_unk(train_X_tokenized,n_words,d)
-    testX = tokenize_and_remove_unk(test_X_tokenized,n_words,d)
-    validX = tokenize_and_remove_unk(valid_X_tokenized,n_words,d)
+    trainX = tokenize_and_remove_unk(train_X_tokenized,n_words,dictionary)
+    testX = tokenize_and_remove_unk(test_X_tokenized,n_words,dictionary)
+    validX = tokenize_and_remove_unk(valid_X_tokenized,n_words,dictionary)
 
     test_dict = None
     test_dict_token = None
     if save_test!=None:
-#        test_dict = get_input_json(filenames_test)
         test_dict,test_dict_token = get_input_json(filenames_test,w2v=None,token=1,feed=testX)
         
         
