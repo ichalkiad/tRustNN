@@ -20,7 +20,7 @@ if src_path not in sys.path:
 import data_format
 from wcloud_standalone import get_wcloud
 import heatmap as hmap
-
+from lrp import get_lrp_timedata
 
 def get_wc_colourGroups(rawInput_source):
 
@@ -109,7 +109,7 @@ def update_source(attrname, old, new):
 
     #update dimension reduction source
     algorithm = projection_selections.value
-    knn = 10
+    knn = 5
     x_pr,performance_metric = dim_reduction.project(x, algorithm, knn, labels)
 
     #update clustering 
@@ -164,6 +164,7 @@ def update_source(attrname, old, new):
     if gate_value=="input_gate":
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
     elif gate_value=="forget_gate":
+        print(LRP)
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
     elif gate_value=="output_gate":
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
@@ -212,12 +213,12 @@ clustering_selections = get_clustering_selections(algorithm_neurons)
 #Raw input clustering
 rawInput_selections = get_rawInput_selections()
 
-tools = "pan,wheel_zoom,box_zoom,reset,hover"
+tools = "pan,wheel_zoom,box_zoom,reset"
 
 #Dimensionality reduction
 labels = None 
 data_pr = data[lstm_layer_name][gate_selections.value]
-X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=10, labels=labels)
+X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=5, labels=labels)
 X_cluster_labels, X_colors, _ = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value),mode="nn")
 proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors))
 #  + performance_metric[0] + performance_metric[1]
@@ -246,19 +247,21 @@ wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,
 
 #ONLY if wc from "out" gate?????
 words_to_be_highlighted = list(set(wc_words).intersection(totalLRP[rawInput_selections.value]['words']))
-print(words_to_be_highlighted) #[i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
+
 highlight_source = ColumnDataSource(dict(scores=[]))
-tap_source = ColumnDataSource(dict(wc_words=words_to_be_highlighted,lrp=totalLRP[rawInput_selections.value]['lrp'].tolist()))
+
+tap_source = ColumnDataSource(dict(wc_words=words_to_be_highlighted))
+lrp_source = ColumnDataSource(dict(lrp=totalLRP[rawInput_selections.value]['lrp'].tolist()))
 #totalLRP : how relevant is each LSTM neuron
 
-taptool.callback = CustomJS(args=dict(source=tap_source,high=highlight_source,div=text_banner),
+
+taptool.callback = CustomJS(args=dict(source=tap_source,lrp=lrp_source,high=highlight_source,div=text_banner),
 code="""
      cell = cb_obj.selected['1d']['indices'][0]
      var d = high.data;
      d['scores'] = []
-     e = []
-     for(var i=0; i<source.data['lrp'].length; i++){
-        d['scores'].push(source.data['lrp'][i][cell])
+     for(var i=0; i<source.data['wc_words'].length; i++){
+        d['scores'].push(lrp.data['lrp'][cell]*1e4)
      }
      high.change.emit();
      ws = div.text.split(" ");
@@ -268,7 +271,7 @@ code="""
         if (w_idx>=0){
            if (d['scores'][w_idx]>0){
               if (d['scores'][w_idx]<1){
-                 ws_out.push("<span style='background-color: rgba(255,0,0,d['scores'][w_idx])'>"+ws[j]+"</span>")
+                 ws_out.push("<span style='background-color: rgba(255,0,0,"+d['scores'][w_idx]+")'>"+ws[j]+"</span>")
               }
               else {
                  ws_out.push("<span style='background-color: rgba(255,0,0,0.98)'>"+ws[j]+"</span>")
@@ -276,7 +279,7 @@ code="""
            }
            if (d['scores'][w_idx]<0){
               if (Math.abs(d['scores'][w_idx])<1){
-                 ws_out.push("<span style='background-color: rgba(0,255,0,Math.abs(d['scores'][w_idx]))'>"+ws[j]+"</span>")
+                 ws_out.push("<span style='background-color: rgba(0,255,0,"+Math.abs(d['scores'][w_idx])+")'>"+ws[j]+"</span>")
               }
               else {
                  ws_out.push("<span style='background-color: rgba(0,255,0,0.98)'>"+ws[j]+"</span>")
@@ -288,17 +291,9 @@ code="""
         }
      }
      div.text = ws_out.join(" ")
-
+     console.log(ws_out)     
      """)
-
-"""
-     dmax = Math.max.apply(Math, d['scores']); 
-     for(var i=0; i<source.data['lrp'].length; i++){
-        e.push((d['scores'][i]/dmax)*1e10)
-     }
-     console.log(e)
-"""
-    
+  
 
 img_source = ColumnDataSource(dict(url = [load_dir+wc_filename]))
 xdr = Range1d(start=0, end=600)
@@ -312,6 +307,14 @@ text_0 = Paragraph(text="Clustering option:", width=200, height=20)
 text_set = Paragraph(text="KMeans: Clusters neurons based on their gate values after training.", width=250, height=100)
 
 
+lrp_timedata = get_lrp_timedata(LRP)
+lrptime_source = ColumnDataSource(dict(lrptime = lrp_timedata,time=[i for i in range(len(lrp_timedata))]))
+lrp_plot = figure(title="Total normalized LRP per timestep",plot_width=300, plot_height=50)
+lrp_plot.scatter('time','lrptime', marker='circle', size=5, alpha=0.5, source=lrptime_source)
+lrp_plot.xaxis.axis_label = 'Time'
+lrp_plot.yaxis.axis_label = 'Total normalized LRP'
+
+
 #Layout
 gate_selections.on_change('value', update_source)
 projection_selections.on_change('value', update_source)
@@ -320,6 +323,7 @@ for attr in clustering_selections:
 rawInput_selections.on_change('value', update_source)
 
 gp = layout([project_plot, wc_plot, widgetbox(gate_selections,projection_selections,rawInput_selections,clustering_selections[0],clustering_selections[1],text_0,text_set,label_banner)],
+            [lrp_plot],
             [text_banner],
             responsive=True)
 curdoc().add_root(gp)

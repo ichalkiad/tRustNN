@@ -13,6 +13,29 @@ import pickle
 import gensim
 
 
+def get_lrp_timedata(LRP):
+
+    out_reversed = []
+    kkeys = list(LRP.keys())
+    lens = []
+    for i in kkeys:
+        lens.append(len(list(LRP[i]['words'])))
+    max_len = np.max(lens)
+    for i in range(max_len):
+        j = 0
+        normalize_factor = 0
+        lrp_t = 0
+        for k in kkeys:
+            if lens[j]-1-i>=0:
+                normalize_factor = normalize_factor + 1
+                lrp = list(LRP[k]['scores'])[lens[j]-1-i]
+                lrp_t = lrp_t + lrp
+            
+            j = j + 1
+        out_reversed.append(lrp_t/normalize_factor)
+    
+    return out_reversed[::-1] #reverse for time = 0...T
+
 def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
 # Get neurons that trigger exclusively for positive or negative reviews according to the network. Assign them to neutral if activate for both types of reviews.
     reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
@@ -215,6 +238,7 @@ def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictiona
         Rout = lrp_lstm
         ws = []
         scores = []
+    
         for t in range(sequence_len):
             zj = lstm_first_input[t,:]
             zi = np.zeros((W.shape[0]))
@@ -223,7 +247,7 @@ def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictiona
             lrp_ebd = lrp_linear(zi, W, b, zj, R_t, N, eps, delta, debug)
             ws.append(dictionary[z[t]])
             scores.append(lrp_ebd[z[t]])
-
+        
         LRP = collections.OrderedDict(words=ws,scores=scores)
 
         return LRP

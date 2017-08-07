@@ -213,6 +213,7 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embed
     testX = tokenize_and_remove_unk(test_X_tokenized,n_words,dictionary)
     validX = tokenize_and_remove_unk(valid_X_tokenized,n_words,dictionary)
 
+    
     test_dict = None
     test_dict_token = None
     if save_test!=None:
