@@ -102,6 +102,7 @@ def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None,mode="nn
         if algorithm == "DBSCAN - selected review":
             reviewData_name = [s for s in list(neuronData.keys()) if review_part in s][0]
             dstMat = neuronData[reviewData_name]
+            print(dstMat.shape)
             db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
             y_pred = db.labels_.astype(np.int)
         elif algorithm == "DBSCAN - all reviews":

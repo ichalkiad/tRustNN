@@ -12,7 +12,7 @@ References:
     - http://ai.stanford.edu/~amaas/data/sentiment/
 """
 from __future__ import division, print_function, absolute_import
-from IMDB_dataset.textData_cluster import filenames
+from IMDB_dataset.textData import filenames
 from parameter_persistence import export_serial_model,export_serial_lstm_data
 from sacred.observers import FileStorageObserver
 import IMDB_dataset.imdb_preprocess as imdb_pre
@@ -53,12 +53,12 @@ def config():
     tensorboard_dir = "./sacred_models/tf_logs/"
     run_id = "runID_newOutput"
     n_words = 10000 #89527 
-    dictionary = "/home/icha/tRustNN/imdb_dict.pickle"
+    dictionary = "/home/yannis/Desktop/tRustNN/imdb_dict.pickle"   #"/home/icha/tRustNN/imdb_dict.pickle"
     embedding_dim = 300
     ckp_path = None #"./sacred_models/ckp/"
     internals = "all"    
     save_mode = "pickle"
-    n_epoch = 2
+    n_epoch = 10
     test_size = 0.05 # -1 for whole test set
     embedding_layer = 1
     
@@ -153,7 +153,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     print("Extracting features...")
     
     #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    
+    """
     trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat = imdb_pre.preprocess_IMDBdata(seed=seed,filenames=filenames,n_words=n_words,dictionary=dictionary_w,embedding_dim=embedding_dim,test_size=test_size,save_test="save_test")
     
     """
@@ -161,10 +161,9 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat) = pickle.load(handle)
     
     """
-    """
     with open(save_dir+"embedding_initMat.pickle", "wb") as f:
             pickle.dump(embedding_initMat,f)
-    """
+    
     d = test_dict        
     if save_mode=="pickle":
         with open(save_dir+"test_data_input.pickle", "wb") as f:
@@ -183,6 +182,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     print("Exported test data token dictionary...")
     
     """
+    """
     with open('trainValidtestNew.pickle','wb') as handle:
         pickle.dump((trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat),handle)
     """
@@ -191,11 +191,11 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path,embedding_initMat)
 
     model.fit(trainX, trainY, validation_set=(validX, validY),  show_metric=show_metric, batch_size=batch_size)  #n_epoch=n_epoch,
-    
+    """
     print("Evaluating trained model on test set...")
     score = model.evaluate(testX,testY)
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
-    
+    """
     
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)

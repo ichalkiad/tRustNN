@@ -97,8 +97,8 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
          wc = WordCloud(
             background_color="white",
             max_words=2000,
-            width = 400,
-            height = 400,
+            width = 500,
+            height = 550,
             stopwords=stopwords.words("english")
          )
          wc.generate(text)

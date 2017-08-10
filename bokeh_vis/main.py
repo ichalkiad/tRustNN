@@ -112,6 +112,11 @@ def update_source(attrname, old, new):
     
     x = data[lstm_layer_name][gate_value]
 
+    #update raw input
+    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
+    text_banner.text = open(text_src,"r").read()
+    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
+
     #update dimension reduction source
     algorithm = projection_selections.value
     knn = 5
@@ -138,8 +143,6 @@ def update_source(attrname, old, new):
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         text_set.text = "Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative."
         neuronData = neuron_types
-        print(neuron_types.shape)
-        sys.exit(0)
         cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
     
     else:
@@ -147,7 +150,7 @@ def update_source(attrname, old, new):
             text_set.text = "KMeans: Clusters neurons based on their gate values after training."
         elif algorithm_cl_neurons=="DBSCAN - selected review":
             text_set.text = "DBSCAN - selected review: Clusters neurons based on how related their most activating words are. List of activating words generated from seleceted review."
-        neuronData = similarityMatrix_PerReview
+        neuronData = similarityMatrix_PerReview       
         cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
 
         
@@ -159,10 +162,6 @@ def update_source(attrname, old, new):
         project_plot.title.text = algorithm
     """
     
-    #update raw input
-    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-    text_banner.text = open(text_src,"r").read()
-    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
 
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw) ###LOADS EMBEDDINGS HERE
     w2v_labels, w2v_colors, _ = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
@@ -202,6 +201,7 @@ with open(load_dir+"lstm_predictions.pickle","rb") as handle:
     predicted_tgs = pickle.load(handle)
 with open(load_dir+"exploratoryDataFull.pickle", 'rb') as f:
     excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP = pickle.load(f)
+
     
 #neuronExcitingWords_AllReviews = list((excitingWords_fullSet.values()))
 _,lstm_hidden = data_format.get_data(load_dir+"test_model_internals_lstm_hidden.pickle")
