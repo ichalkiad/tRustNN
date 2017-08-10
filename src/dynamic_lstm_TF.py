@@ -86,8 +86,9 @@ def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,e
     # Network building
     if embedding_layer:
         net = tflearn.input_data([None,sequence_length]) 
-        W = tf.constant(embedding_initMat, dtype=np.float32,name="W")
-        ebd_output = tflearn.embedding(net, input_dim=n_words, output_dim=embedding_dim,weights_init=W, name='embedding')
+        #W = tf.constant(embedding_initMat, dtype=np.float32,name="W")
+        #ebd_output = tflearn.embedding(net, input_dim=n_words, output_dim=embedding_dim,weights_init=W, name='embedding')
+        ebd_output = tflearn.embedding(net, input_dim=n_words, output_dim=embedding_dim, name='embedding')
         n = "embedding_output"
         layer_outputs[n] = ebd_output
         prev_incoming = ebd_output
@@ -160,9 +161,10 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
         (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat) = pickle.load(handle)
     
     """
-
+    """
     with open(save_dir+"embedding_initMat.pickle", "wb") as f:
             pickle.dump(embedding_initMat,f)
+    """
     d = test_dict        
     if save_mode=="pickle":
         with open(save_dir+"test_data_input.pickle", "wb") as f:
@@ -188,7 +190,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path,embedding_initMat)
 
-    model.fit(trainX, trainY, validation_set=(validX, validY), n_epoch=n_epoch, show_metric=show_metric, batch_size=batch_size)
+    model.fit(trainX, trainY, validation_set=(validX, validY),  show_metric=show_metric, batch_size=batch_size)  #n_epoch=n_epoch,
     
     print("Evaluating trained model on test set...")
     score = model.evaluate(testX,testY)
@@ -211,11 +213,11 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     feed = testX
     input_files = filenames_test_sfd
-    """
+    
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
     
     print("Exported internals...")
-    """
+    
     #Delete part that creates problem in restoring model - should still be able to evaluate, but tricky for continuing training
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")

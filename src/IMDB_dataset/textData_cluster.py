@@ -2,8 +2,7 @@ filenames = ['/home/icha/aclImdb/test/pos/127_10.txt',
 '/home/icha/aclImdb/test/pos/126_10.txt',
 '/home/icha/aclImdb/test/pos/125_7.txt',
 '/home/icha/aclImdb/test/pos/124_10.txt',
-'/home/icha/aclImdb/test/pos/123_10.txt']
-"""
+'/home/icha/aclImdb/test/pos/123_10.txt',
 '/home/icha/aclImdb/test/pos/122_8.txt',
 '/home/icha/aclImdb/test/pos/121_8.txt',
 '/home/icha/aclImdb/test/pos/120_9.txt',
@@ -25001,4 +25000,3 @@ filenames = ['/home/icha/aclImdb/test/pos/127_10.txt',
 '/home/icha/aclImdb/train/pos/12416_10.txt']
 
 
-"""

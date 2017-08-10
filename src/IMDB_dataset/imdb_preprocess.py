@@ -177,8 +177,8 @@ def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embed
     filenames_valid = X_valid
     filenames_test  = X_test
 
-    
-    embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary)
+    embedding_initMat = None    
+    #embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary)
     
     testX = []
     for i in filenames_test:
