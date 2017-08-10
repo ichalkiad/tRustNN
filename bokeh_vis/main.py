@@ -2,7 +2,7 @@ from bokeh.models import ColumnDataSource, HoverTool, Range1d, Plot, LinearAxis,
 from bokeh.plotting import figure, show, output_file
 from bokeh.io import curdoc
 from bokeh.layouts import widgetbox , layout
-from bokeh.models.widgets import Select, Slider
+from bokeh.models.widgets import Select, Slider, Button
 import dim_reduction
 import numpy as np
 import clustering
@@ -21,6 +21,11 @@ import data_format
 from wcloud_standalone import get_wcloud
 import heatmap as hmap
 from lrp import get_lrp_timedata
+
+
+def button_callback():
+    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
+    text_banner.text = open(text_src,"r").read()
 
 def get_wc_colourGroups(rawInput_source):
 
@@ -107,6 +112,11 @@ def update_source(attrname, old, new):
     
     x = data[lstm_layer_name][gate_value]
 
+    #update raw input
+    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
+    text_banner.text = open(text_src,"r").read()
+    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
+
     #update dimension reduction source
     algorithm = projection_selections.value
     knn = 5
@@ -140,7 +150,7 @@ def update_source(attrname, old, new):
             text_set.text = "KMeans: Clusters neurons based on their gate values after training."
         elif algorithm_cl_neurons=="DBSCAN - selected review":
             text_set.text = "DBSCAN - selected review: Clusters neurons based on how related their most activating words are. List of activating words generated from seleceted review."
-        neuronData = similarityMatrix_PerReview
+        neuronData = similarityMatrix_PerReview       
         cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
 
         
@@ -152,10 +162,6 @@ def update_source(attrname, old, new):
         project_plot.title.text = algorithm
     """
     
-    #update raw input
-    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-    text_banner.text = open(text_src,"r").read()
-    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
 
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw) ###LOADS EMBEDDINGS HERE
     w2v_labels, w2v_colors, _ = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
@@ -164,7 +170,6 @@ def update_source(attrname, old, new):
     if gate_value=="input_gate":
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
     elif gate_value=="forget_gate":
-        print(LRP)
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
     elif gate_value=="output_gate":
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
@@ -196,6 +201,7 @@ with open(load_dir+"lstm_predictions.pickle","rb") as handle:
     predicted_tgs = pickle.load(handle)
 with open(load_dir+"exploratoryDataFull.pickle", 'rb') as f:
     excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP = pickle.load(f)
+
     
 #neuronExcitingWords_AllReviews = list((excitingWords_fullSet.values()))
 _,lstm_hidden = data_format.get_data(load_dir+"test_model_internals_lstm_hidden.pickle")
@@ -240,6 +246,8 @@ text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selecti
 text_banner = Div(text=open(text_src,"r").read(), width=1300, height=100)
 label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE", width=200, height=30)
 
+button = Button(label="Reset text")
+button.on_click(button_callback)
 
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source) #Colors based on similarity in embedding space
@@ -308,7 +316,8 @@ text_set = Paragraph(text="KMeans: Clusters neurons based on their gate values a
 
 
 lrp_timedata = get_lrp_timedata(LRP)
-lrptime_source = ColumnDataSource(dict(lrptime = lrp_timedata,time=[i for i in range(len(lrp_timedata))]))
+time = [i for i in range(len(lrp_timedata))]
+lrptime_source = ColumnDataSource(dict(lrptime = lrp_timedata,time=time))
 lrp_plot = figure(title="Total normalized LRP per timestep",plot_width=300, plot_height=50)
 lrp_plot.scatter('time','lrptime', marker='circle', size=5, alpha=0.5, source=lrptime_source)
 lrp_plot.xaxis.axis_label = 'Time'
@@ -322,7 +331,7 @@ for attr in clustering_selections:
     attr.on_change('value', update_source)
 rawInput_selections.on_change('value', update_source)
 
-gp = layout([project_plot, wc_plot, widgetbox(gate_selections,projection_selections,rawInput_selections,clustering_selections[0],clustering_selections[1],text_0,text_set,label_banner)],
+gp = layout([project_plot, wc_plot, widgetbox(rawInput_selections,gate_selections,projection_selections,clustering_selections[0],clustering_selections[1],text_0,text_set,label_banner,button)],
             [lrp_plot],
             [text_banner],
             responsive=True)

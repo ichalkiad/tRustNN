@@ -28,7 +28,7 @@ def get_lrp_timedata(LRP):
         for k in kkeys:
             if lens[j]-1-i>=0:
                 normalize_factor = normalize_factor + 1
-                lrp = list(LRP[k]['scores'])[lens[j]-1-i]
+                lrp = abs(list(LRP[k]['scores'])[lens[j]-1-i])  #abs, since we want the total LRP, either positive or negative
                 lrp_t = lrp_t + lrp
             
             j = j + 1
@@ -38,9 +38,17 @@ def get_lrp_timedata(LRP):
 
 def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
 # Get neurons that trigger exclusively for positive or negative reviews according to the network. Assign them to neutral if activate for both types of reviews.
+
     reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
 
-    if predictions[i].all()==0:
+    pred = -1
+    if predictions[i,0]==1:
+       pred = 0
+    elif predictions[i,0]==0:
+       pred = 1
+    
+    
+    if pred==0:
        for j in lrp_neurons:
            if reviewLRP_data["neg"]==[]:
               reviewLRP_data["neg"] = [j]
@@ -50,7 +58,7 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
                    reviewLRP_data["neutral"].append(j)
               elif j not in reviewLRP_data["neg"]:
                    reviewLRP_data["neg"].append(j)
-    elif predictions[i]==1:
+    elif pred==1:
        for j in lrp_neurons:
            if reviewLRP_data["pos"]==[]:
               reviewLRP_data["pos"] = [j]
@@ -60,19 +68,18 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
                  reviewLRP_data["neutral"].append(j)
               elif j not in reviewLRP_data["pos"]:
                  reviewLRP_data["pos"].append(j)
-
+    
     return reviewLRP_data
 
-def get_NeuronType(reviewLRP_data):
+def get_NeuronType(reviewLRP_data,neuron_num):
 # Assign a label to each neuron based on whether it activates on positive-,negative-only or both types of reviews.
     
-    neuron_num = len(reviewLRP_data["pos"])+len(reviewLRP_data["neg"])+len(reviewLRP_data["neutral"])
     posNeg_predictionLabel = np.zeros((neuron_num,))
 
     for i in range(neuron_num):
         if i in reviewLRP_data["pos"]:
             posNeg_predictionLabel[i] = 1
-        elif i in reviewLRP_data["neutral"]:
+        elif i in reviewLRP_data["neg"]:
             posNeg_predictionLabel[i] = 2
 
     return posNeg_predictionLabel
@@ -187,7 +194,13 @@ def get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN=5):
           d[kkeys[i]] = ord_cells[-(topN+1):-1].tolist()
 
      NtoW = invert_dict_nonunique(d,topN)
-     
+     NtoW_keys = map(int,list(NtoW.keys()))
+     for i in range(kdata.shape[1]):
+         if i not in NtoW_keys:
+             NtoW[str(i)] = []     
+
+     print(map(int,list(NtoW.keys())))   #########################
+             
      with open(save_dir+re.sub('/', '_', k[-18:-4])+"_ActCells.json", 'w') as f:
             json.dump(NtoW, f)
 
@@ -400,16 +413,16 @@ def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_laye
          lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,data_token,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
          lrp_neurons = get_topLRP_cells(lrp_fc,k,save_dir,topN)
-         reviewLRP_data = get_PosNegNeurons_dict(i,predictions,lrp_neurons)
+         reviewLRP_data = get_PosNegNeurons_dict(i,predictions,lrp_neurons) 
          review_filename, _ = get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN)
          dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
          neuronWords_jsons.append(review_filename)
-         similarityMatrix_PerReview[review_filename] = dstMat
+         similarityMatrix_PerReview[k] = dstMat
 
          LRP[k] = lrp_input # contains LRP of input words
          totalLRP[k] = collections.OrderedDict(words=kkeys,lrp=lrp_fc) # contains LRP halfway through network, i.e. LRP of LSTM neurons
-
-    neuron_types = get_NeuronType(reviewLRP_data)
+         
+    neuron_types = get_NeuronType(reviewLRP_data,lrp_fc.shape[0])
     excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)
     similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(excitingWords_fullSet)
     with open(save_dir+"exploratoryDataFull.pickle", 'wb') as f:
