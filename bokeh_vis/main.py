@@ -2,7 +2,7 @@ from bokeh.models import ColumnDataSource, HoverTool, Range1d, Plot, LinearAxis,
 from bokeh.plotting import figure, show, output_file
 from bokeh.io import curdoc
 from bokeh.layouts import widgetbox , layout
-from bokeh.models.widgets import Select, Slider
+from bokeh.models.widgets import Select, Slider, Button
 import dim_reduction
 import numpy as np
 import clustering
@@ -21,6 +21,11 @@ import data_format
 from wcloud_standalone import get_wcloud
 import heatmap as hmap
 from lrp import get_lrp_timedata
+
+
+def button_callback():
+    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
+    text_banner.text = open(text_src,"r").read()
 
 def get_wc_colourGroups(rawInput_source):
 
@@ -133,6 +138,8 @@ def update_source(attrname, old, new):
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         text_set.text = "Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative."
         neuronData = neuron_types
+        print(neuron_types.shape)
+        sys.exit(0)
         cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
     
     else:
@@ -164,7 +171,6 @@ def update_source(attrname, old, new):
     if gate_value=="input_gate":
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
     elif gate_value=="forget_gate":
-        print(LRP)
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
     elif gate_value=="output_gate":
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
@@ -240,6 +246,8 @@ text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selecti
 text_banner = Div(text=open(text_src,"r").read(), width=1300, height=100)
 label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE", width=200, height=30)
 
+button = Button(label="Reset text")
+button.on_click(button_callback)
 
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source) #Colors based on similarity in embedding space
@@ -308,7 +316,8 @@ text_set = Paragraph(text="KMeans: Clusters neurons based on their gate values a
 
 
 lrp_timedata = get_lrp_timedata(LRP)
-lrptime_source = ColumnDataSource(dict(lrptime = lrp_timedata,time=[i for i in range(len(lrp_timedata))]))
+time = [i for i in range(len(lrp_timedata))]
+lrptime_source = ColumnDataSource(dict(lrptime = lrp_timedata,time=time))
 lrp_plot = figure(title="Total normalized LRP per timestep",plot_width=300, plot_height=50)
 lrp_plot.scatter('time','lrptime', marker='circle', size=5, alpha=0.5, source=lrptime_source)
 lrp_plot.xaxis.axis_label = 'Time'
@@ -322,7 +331,7 @@ for attr in clustering_selections:
     attr.on_change('value', update_source)
 rawInput_selections.on_change('value', update_source)
 
-gp = layout([project_plot, wc_plot, widgetbox(gate_selections,projection_selections,rawInput_selections,clustering_selections[0],clustering_selections[1],text_0,text_set,label_banner)],
+gp = layout([project_plot, wc_plot, widgetbox(rawInput_selections,gate_selections,projection_selections,clustering_selections[0],clustering_selections[1],text_0,text_set,label_banner,button)],
             [lrp_plot],
             [text_banner],
             responsive=True)

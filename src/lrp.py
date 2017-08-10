@@ -39,8 +39,10 @@ def get_lrp_timedata(LRP):
 def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
 # Get neurons that trigger exclusively for positive or negative reviews according to the network. Assign them to neutral if activate for both types of reviews.
     reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
-
-    if predictions[i].all()==0:
+    print(predictions)
+    print(lrp_neurons)
+    
+    if predictions[i]==0:
        for j in lrp_neurons:
            if reviewLRP_data["neg"]==[]:
               reviewLRP_data["neg"] = [j]
@@ -60,7 +62,7 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
                  reviewLRP_data["neutral"].append(j)
               elif j not in reviewLRP_data["pos"]:
                  reviewLRP_data["pos"].append(j)
-
+    print(len(reviewLRP_data["pos"])+len(reviewLRP_data["neg"])+len(reviewLRP_data["neutral"]))
     return reviewLRP_data
 
 def get_NeuronType(reviewLRP_data):
