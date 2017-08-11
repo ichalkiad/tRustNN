@@ -199,7 +199,6 @@ def get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN=5):
          if i not in NtoW_keys:
              NtoW[str(i)] = []     
 
-     print(map(int,list(NtoW.keys())))   #########################
              
      with open(save_dir+re.sub('/', '_', k[-18:-4])+"_ActCells.json", 'w') as f:
             json.dump(NtoW, f)
@@ -350,14 +349,15 @@ def load_intermediate_outputs(input_filename,embedding_json,fc_json,lstm_hidden_
      lstm_cell   = data_cell[input_filename]
      fc_out      = data_fc[input_filename]
      embedding_output_data = data_ebd[input_filename]
-     
+
+     T = embedding_output_data.shape
      d = lstm_cell.shape[1]
      
-     return fc_out,lstm_hidden,lstm_cell,embedding_output_data,d
+     return fc_out,lstm_hidden,lstm_cell,embedding_output_data,d,T
 
 
 
-def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,single_input_data,data_token,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class,T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
+def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,single_input_data,data_token,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
 
         
     with model.session.as_default():
@@ -365,7 +365,7 @@ def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,si
         lrp_mask = np.zeros((classes))
         lrp_mask[target_class] = 1.0
 
-        fc_out,lstm_hidden,lstm_cell,embedding_output_data,d = load_intermediate_outputs(input_filename,ebd_json,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None)
+        fc_out,lstm_hidden,lstm_cell,embedding_output_data,d,T = load_intermediate_outputs(input_filename,ebd_json,fc_json,lstm_hidden_json,lstm_cell_json,layer_name=None)
         
         #LRP through fc layer
         fc_name = "fc"
@@ -407,10 +407,9 @@ def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_laye
          k = list(keys_test)[i]
          kkeys = list(data_test[k].keys())
          kdata = np.array(list(data_test[k].values()))
-         T = kdata.shape
          data_token = np.array(data_test_token[k])
 
-         lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,data_token,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class=1,T=T,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
+         lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,data_token,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class=1,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
          lrp_neurons = get_topLRP_cells(lrp_fc,k,save_dir,topN)
          reviewLRP_data = get_PosNegNeurons_dict(i,predictions,lrp_neurons) 
