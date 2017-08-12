@@ -102,7 +102,6 @@ def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None,mode="nn
         if algorithm == "DBSCAN - selected review":
             reviewData_name = [s for s in list(neuronData.keys()) if review_part in s][0]
             dstMat = neuronData[reviewData_name]
-            print(dstMat.shape)
             db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
             y_pred = db.labels_.astype(np.int)
         elif algorithm == "DBSCAN - all reviews":
@@ -114,11 +113,11 @@ def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None,mode="nn
             db = cluster.AgglomerativeClustering(n_clusters=n_clusters,affinity="precomputed",linkage="average").fit(dstMat)
             y_pred = db.labels_.astype(np.int)
         elif algorithm == "Positive-Negative neuron clustering (LSTM's predictions)":
-            y_pred = neuronData
+            y_pred = [int(i) for i in neuronData.tolist()]
         
 
     colors = [spectral[i] for i in y_pred]
-
+    
 
     return y_pred, colors, spectral
 

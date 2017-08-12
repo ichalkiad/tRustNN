@@ -23,7 +23,7 @@ from nltk.corpus import stopwords
 import re
 from bokeh.plotting import figure, show, output_file
 import wcloud_group_coloring as wcColor
-
+from sklearn.preprocessing import MinMaxScaler
 
 ex = Experiment('IMDBMovieReview-WordCloud')
 
@@ -90,6 +90,7 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
      except OSError:
          pass
 
+     scaler = MinMaxScaler(copy=True, feature_range=(-1, 1))
      ws = LRP[k]['words']
      scs = LRP[k]['scores']
 
@@ -99,7 +100,8 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
             max_words=2000,
             width = 500,
             height = 550,
-            stopwords=stopwords.words("english")
+             stopwords=stopwords.words("english"),
+             relative_scaling=1
          )
          wc.generate(text)
          save_filename = save_filename[:-4]+"_i.png"
@@ -110,9 +112,10 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
          wc = WordCloud(
             background_color="white",
             max_words=2000,
-            width = 400,
-            height = 400,
-            stopwords=stopwords.words("english")
+            width = 500,
+            height = 550,
+            stopwords=stopwords.words("english"),
+             relative_scaling=1
          )
          wc.generate_from_frequencies(weights)
      elif gate=="forget":
@@ -122,9 +125,10 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
          wc = WordCloud(
             background_color="white",
             max_words=2000,
-            width = 400,
-            height = 400,
-            stopwords=stopwords.words("english")
+            width = 500,
+            height = 550,
+            stopwords=stopwords.words("english"),
+             relative_scaling=1
          )
          wc.generate_from_frequencies(weights)
          out_words = [i[0][0] for i in wc.layout_]
@@ -137,9 +141,10 @@ def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
          wc = WordCloud(
                  background_color="white",
                  max_words=2000,
-                 width = 400,
-                 height = 400,
-                 stopwords=stopwords.words("english")
+                 width = 500,
+                 height = 550,
+                 stopwords=stopwords.words("english"),
+             relative_scaling=1
          )
          wc.generate_from_frequencies(weights)
          save_filename = save_filename[:-4]+"_f.png"

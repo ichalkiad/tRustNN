@@ -13,6 +13,7 @@ import pickle
 from bokeh.models.glyphs import ImageURL
 import re
 from bokeh.models.callbacks import CustomJS
+from sklearn.preprocessing import MinMaxScaler
 
 src_path = os.path.abspath("./src/")
 if src_path not in sys.path:
@@ -115,7 +116,8 @@ def update_source(attrname, old, new):
     #update raw input
     text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
     text_banner.text = open(text_src,"r").read()
-    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE"
+    text_banner2.text = open(text_src,"r").read()
+    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][0] == 0 else "Network decision : NEGATIVE"
 
     #update dimension reduction source
     algorithm = projection_selections.value
@@ -143,8 +145,14 @@ def update_source(attrname, old, new):
     elif algorithm_cl_neurons=="Positive-Negative neuron clustering (LSTM's predictions)":
         text_set.text = "Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative."
         neuronData = neuron_types
-        cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
-    
+        cluster_labels, colors, spectr = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
+        neutral = tuple(int((spectr[0].lstrip('#'))[i:i+2], 16) for i in (0, 2 ,4))
+        positive = tuple(int((spectr[1].lstrip('#'))[i:i+2], 16) for i in (0, 2 ,4))
+        negative = tuple(int((spectr[2].lstrip('#'))[i:i+2], 16) for i in (0, 2 ,4))
+        neu = "<span style='background-color: rgb("+str(neutral[0])+","+str(neutral[1])+","+str(neutral[2])+")'>Neutral</span>"
+        pos = "<span style='background-color: rgb("+str(positive[0])+","+str(positive[1])+","+str(positive[2])+")'>Positive</span>"
+        neg = "<span style='background-color: rgb("+str(negative[0])+","+str(negative[1])+","+str(negative[2])+")'>Negative</span>"
+        text_set.text = "Positive-Negative neuron clustering: Clusters neurons based on how much they contributed to classifying the review as positive or negative:"+neu+" "+pos+" "+neg
     else:
         if algorithm_cl_neurons=="KMeans - selected gate":
             text_set.text = "KMeans: Clusters neurons based on their gate values after training."
@@ -155,12 +163,6 @@ def update_source(attrname, old, new):
 
         
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
-    """
-    if performance_metric!=(None,None):
-        project_plot.title.text = algorithm + performance_metric[0] + performance_metric[1]
-    else:
-        project_plot.title.text = algorithm
-    """
     
 
     text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw) ###LOADS EMBEDDINGS HERE
@@ -175,6 +177,8 @@ def update_source(attrname, old, new):
         wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
 
     words_to_be_highlighted = [i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
+    lrp_source.data['lrp'] = scaler.fit_transform(np.array(totalLRP[rawInput_selections.value]['lrp'].tolist()).reshape(-1,1))
+    tap_source.data['wc_words'] = words_to_be_highlighted
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
     
 
@@ -202,7 +206,7 @@ with open(load_dir+"lstm_predictions.pickle","rb") as handle:
 with open(load_dir+"exploratoryDataFull.pickle", 'rb') as f:
     excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP = pickle.load(f)
 
-    
+
 #neuronExcitingWords_AllReviews = list((excitingWords_fullSet.values()))
 _,lstm_hidden = data_format.get_data(load_dir+"test_model_internals_lstm_hidden.pickle")
 _,learned_embeddings = data_format.get_data(load_dir+"test_model_internals_ebd.pickle")
@@ -244,7 +248,8 @@ rawInput_source = ColumnDataSource(dict(z=w2v_colors,w=text_words))
 
 text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
 text_banner = Div(text=open(text_src,"r").read(), width=1300, height=100)
-label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][1] == 1 else "Network decision : NEGATIVE", width=200, height=30)
+text_banner2 = Div(text=open(text_src,"r").read(), width=1300, height=100)
+label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][0] == 0 else "Network decision : NEGATIVE", width=200, height=30)
 
 button = Button(label="Reset text")
 button.on_click(button_callback)
@@ -252,48 +257,35 @@ button.on_click(button_callback)
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source) #Colors based on similarity in embedding space
 wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
-
-#ONLY if wc from "out" gate?????
 words_to_be_highlighted = list(set(wc_words).intersection(totalLRP[rawInput_selections.value]['words']))
-
 highlight_source = ColumnDataSource(dict(scores=[]))
-
 tap_source = ColumnDataSource(dict(wc_words=words_to_be_highlighted))
-lrp_source = ColumnDataSource(dict(lrp=totalLRP[rawInput_selections.value]['lrp'].tolist()))
+scaler = MinMaxScaler(copy=True, feature_range=(-1, 1))
+lrp_source = ColumnDataSource(dict(lrp=scaler.fit_transform(np.array(totalLRP[rawInput_selections.value]['lrp'].tolist()).reshape(-1,1))))
 #totalLRP : how relevant is each LSTM neuron
 
 
-taptool.callback = CustomJS(args=dict(source=tap_source,lrp=lrp_source,high=highlight_source,div=text_banner),
+taptool.callback = CustomJS(args=dict(source=tap_source,lrp=lrp_source,high=highlight_source,div=text_banner,div_orig=text_banner2),
 code="""
      cell = cb_obj.selected['1d']['indices'][0]
      var d = high.data;
      d['scores'] = []
      for(var i=0; i<source.data['wc_words'].length; i++){
-        d['scores'].push(lrp.data['lrp'][cell]*1e4)
+        d['scores'].push(lrp.data['lrp'][cell])
      }
      high.change.emit();
-     ws = div.text.split(" ");
+     ws = div_orig.text.split(" ");
      ws_out = [];
      for(var j=0; j<ws.length; j++){
         w_idx = source.data['wc_words'].indexOf(ws[j])
         if (w_idx>=0){
            if (d['scores'][w_idx]>0){
-              if (d['scores'][w_idx]<1){
-                 ws_out.push("<span style='background-color: rgba(255,0,0,"+d['scores'][w_idx]+")'>"+ws[j]+"</span>")
-              }
-              else {
-                 ws_out.push("<span style='background-color: rgba(255,0,0,0.98)'>"+ws[j]+"</span>")
-              }
+                ws_out.push("<span style='background-color: rgba(255,0,0,"+d['scores'][w_idx]+")'>"+ws[j]+"</span>")
            }
-           if (d['scores'][w_idx]<0){
-              if (Math.abs(d['scores'][w_idx])<1){
-                 ws_out.push("<span style='background-color: rgba(0,255,0,"+Math.abs(d['scores'][w_idx])+")'>"+ws[j]+"</span>")
-              }
-              else {
-                 ws_out.push("<span style='background-color: rgba(0,255,0,0.98)'>"+ws[j]+"</span>")
-              }
-           }  
-        }
+           else if (d['scores'][w_idx]<0){
+                ws_out.push("<span style='background-color: rgba(0,255,0,"+Math.abs(d['scores'][w_idx])+")'>"+ws[j]+"</span>")
+           }
+        }  
         else {
            ws_out.push(ws[j])
         }
@@ -312,7 +304,7 @@ wc_plot.add_glyph(img_source, image)
 
 
 text_0 = Paragraph(text="Clustering option:", width=200, height=20)
-text_set = Paragraph(text="KMeans: Clusters neurons based on their gate values after training.", width=250, height=100)
+text_set = Div(text="KMeans: Clusters neurons based on their gate values after training.", width=250, height=100)
 
 
 lrp_timedata = get_lrp_timedata(LRP)
