@@ -165,18 +165,20 @@ def get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary):
     return ebd_init    
 
 
-def extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embedding_dim):
+def extract_features(filenames_train_valid,filenames_test,seed,test_size,save_test,n_words,dictionary,embedding_dim):
     
-    random.shuffle(filenames)
+    random.shuffle(filenames_train_valid)
+    random.shuffle(filenames_test)
 
-    X_train, X_valid, y_train, y_valid = train_test_split(filenames, np.zeros(len(filenames)),test_size=2*test_size,random_state=seed)
+    X_train, X_valid, y_train, y_valid = train_test_split(filenames_train_valid, np.zeros(len(filenames_train_valid)),test_size=0.1,random_state=seed)
     filenames_train = X_train
     filenames_valid = X_valid
 
+    """
     X_valid, X_test, y_valid, y_test = train_test_split(filenames_valid, np.zeros(len(filenames_valid)),test_size=0.5,random_state=seed)
     filenames_valid = X_valid
     filenames_test  = X_test
-
+    """
     embedding_initMat = None    
     #embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary)
     
@@ -273,9 +275,9 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
 
 
 
-def preprocess_IMDBdata(seed,filenames,n_words=None,dictionary=None,embedding_dim=300,test_size=0.1,save_test=None):
+def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None,embedding_dim=300,test_size=0.1,save_test=None):
 
-    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token,embedding_initMat = extract_features(filenames,seed,test_size,save_test,n_words,dictionary,embedding_dim)
+    trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token,embedding_initMat = extract_features(filenames_train_valid,filenames_test,seed,test_size,save_test,n_words,dictionary,embedding_dim)
 #    extract_features_w2v(filenames,seed,test_size,save_test=None)
     
     trainX,validX,testX,maxlen = pad_sequences(trainX, validX,testX, value=0.)

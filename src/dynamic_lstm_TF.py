@@ -64,7 +64,7 @@ def config():
     
     #Dictionary describing the architecture of the network
     net_arch = collections.OrderedDict()
-    net_arch['lstm']       = {'n_units':10, 'activation':'tanh', 'inner_activation':'sigmoid',
+    net_arch['lstm']       = {'n_units':128, 'activation':'tanh', 'inner_activation':'sigmoid',
                               'dropout':None, 'bias':True, 'weights_init':None, 'forget_bias':1.0,
                               'return_seq':True, 'return_state':True, 'initial_state':None,
                               'dynamic':True, 'trainable':True, 'restore':True, 'reuse':False,
