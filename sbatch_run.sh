@@ -10,7 +10,7 @@ module load easybuild
 module load lang/Python/3.5.2-foss-2016b
 
 #execute application
-python3.5 /home/icha/tRustNN/src/dynamic_lstm_TF.py with 'seed=27105828'  'db="file"' 'run_id="lstm_big_embedding_nwords10k"'  'n_epoch=10' 'net_arch_layers = ["lstm","fc","output"]' 'net_arch.lstm.return_state=True' 'net_arch.lstm.return_seq=True'  'batch_size = 32' 'save_path = "/home/icha/sacred_models/"' 'tensorboard_dir = "/home/icha/sacred_models/tf_logs/"' 'embedding_dim = 300' 'internals = "all"' 'save_mode="pickle"' 'test_size=0.005' 'net_arch.lstm.n_units=128' 'n_words=10000' 'embedding_layer=1'
+python3.5 /home/icha/tRustNN/src/dynamic_lstm_TF.py with 'seed=27105828'  'db="file"' 'run_id="lstm_embedding_newLRP"'  'n_epoch=100' 'net_arch_layers = ["lstm","fc","output"]' 'net_arch.lstm.return_state=True' 'net_arch.lstm.return_seq=True'  'batch_size = 32' 'save_path = "/home/icha/sacred_models/"' 'tensorboard_dir = "/home/icha/sacred_models/tf_logs/"' 'embedding_dim = 150' 'internals = "all"' 'save_mode="pickle"' 'test_size=0.005' 'net_arch.lstm.n_units=128' 'n_words=10000' 'embedding_layer=1'
 
 
 #python3.5 /home/icha/tRustNN/src/dynamic_lstm_TF.py with 'seed=73467635' 'db="file"' 'run_id="lstm_small_embedding_toy_noInitMat"' 'net_arch.lstm.n_units=20' 'net_arch_layers = ["lstm","fc","output"]' 'net_arch.lstm.return_state=True' 'net_arch.lstm.return_seq=True'  'batch_size = 32' 'save_path = "/home/icha/sacred_models/"' 'tensorboard_dir = "/home/icha/sacred_models/tf_logs/"' 'embedding_dim = 300' 'internals = "all"' 'save_mode="pickle"' 'test_size=0.005' 'n_words=1000' 'embedding_layer=1' 'n_epoch = 10'

@@ -11,6 +11,9 @@ import sys
 import re
 import pickle
 
+from keras.datasets import imdb as imdb
+from keras.preprocessing import sequence
+
 def get_input_json(filenames,w2v=None,token=None,feed=None):
 
     if w2v==None:
@@ -148,21 +151,6 @@ def tokenize_and_remove_unk(X,n_words,dictionary):
     return X_tokenized
 
 
-def get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary):
-
-    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
-    w2v   = dict(zip(model.index2word, model.syn0))
-    inv_dict = {v: k for k, v in dictionary.items()}
-    
-    ebd_init = np.zeros((n_words,embedding_dim))
-    w2v_w = list(w2v.keys())
-    for i in range(n_words):        
-        if inv_dict[i] in w2v_w:
-            ebd_init[i,:] = w2v[inv_dict[i]]
-        else:
-            ebd_init[i,:] = np.zeros((embedding_dim))
-            
-    return ebd_init    
 
 
 def extract_features(filenames_train_valid,filenames_test,seed,test_size,save_test,n_words,dictionary,embedding_dim):
@@ -274,9 +262,93 @@ def extract_labels(filenames_train,filenames_valid,filenames_test):
     return trainY,validY,testY
 
 
+def get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary):
 
-def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,dictionary=None,embedding_dim=300,test_size=0.1,save_test=None):
+    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
+    w2v   = dict(zip(model.index2word, model.syn0))
+    inv_dict = {v: k for k, v in dictionary.items()}
+    
+    ebd_init = np.zeros((n_words,embedding_dim))
+    w2v_w = list(w2v.keys())
+    for i in range(n_words):        
+        if inv_dict[i] in w2v_w:
+            ebd_init[i,:] = w2v[inv_dict[i]]
+        else:
+            ebd_init[i,:] = np.zeros((embedding_dim))
+            
+    return ebd_init    
 
+
+def get_review_from_token(rev_matrix,inv_dictionary_w,save_mode,save_dir,n_words,embedding_dim,dictionary_w):
+
+    review_num = rev_matrix.shape[0]
+    texts = collections.OrderedDict()
+    
+    for i in range(review_num):
+        x = rev_matrix[i,:].tolist()
+        texts[i] =  ' '.join(inv_dictionary_w[id] for id in x)
+
+    if save_mode=="pickle":
+        with open(save_dir+"test_data_text.pickle", "wb") as f:  
+            pickle.dump(texts,f) 
+    else:
+        with open(save_dir+"test_data_text.json", "w") as f: 
+            json.dump(texts, f)    
+
+    print("Exported test id:review  dictionary...")            
+    embedding_initMat = None    
+    #embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary_w)
+    
+    print("Got initial word embeddings...")
+
+    return embedding_initMat
+
+
+def get_ready_features(NUM_WORDS,INDEX_FROM,test_samples_num,save_mode,save_dir,embedding_dim,maxlen=None):
+
+    train,test = imdb.load_data(num_words=NUM_WORDS, index_from=INDEX_FROM)
+    train_X,train_Y = train
+    valid_X,valid_Y = test
+
+    trainY = to_categorical(train_Y,2)
+    validY = to_categorical(valid_Y,2)
+
+    dictionary_w = imdb.get_word_index()
+    dictionary_w = {k:(v+INDEX_FROM) for k,v in dictionary_w.items()}
+    dictionary_w["<PAD>"] = 0
+    dictionary_w["<START>"] = 1
+    dictionary_w["<UNK>"] = 2
+    inv_dictionary_w = {value:key for key,value in dictionary_w.items()}
+
+    lengthsTr = np.max([len(s) for s in train_X])
+    lengthsVd = np.max([len(s) for s in valid_X])
+    if maxlen is None:
+       maxlen = np.max(np.array([lengthsTr,lengthsVd]))
+
+    trainX = sequence.pad_sequences(train_X, maxlen=maxlen)
+    validX = sequence.pad_sequences(valid_X, maxlen=maxlen)
+
+    testX = np.zeros((test_samples_num,maxlen))
+    testY = np.zeros((test_samples_num,validY.shape[1]))
+    test_idx = np.array([random.randrange(0,validX.shape[0],1) for k in range(test_samples_num)])
+    testX[:,:] = validX[test_idx,:]
+    testY[:,:] = validY[test_idx,:]
+    valid_idx = [item for item in [k for k in range(validX.shape[0])] if item not in test_idx.tolist()]
+    validdX = np.zeros((len(valid_idx),maxlen))
+    validdY = np.zeros((len(valid_idx),validY.shape[1]))
+    validdX[:,:] = validX[valid_idx,:]
+    validdY[:,:] = validY[valid_idx,:]
+
+    embedding_initMat = get_review_from_token(testX,inv_dictionary_w,save_mode,save_dir,NUM_WORDS,embedding_dim,dictionary_w)
+
+
+    return trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w
+
+
+
+def preprocess_IMDBdata(n_words=None,INDEX_FROM=3,embedding_dim=300,test_samples_num=100,save_dir="/tmp/",save_mode="pickle"):
+     
+    """
     trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token,embedding_initMat = extract_features(filenames_train_valid,filenames_test,seed,test_size,save_test,n_words,dictionary,embedding_dim)
 #    extract_features_w2v(filenames,seed,test_size,save_test=None)
     
@@ -286,5 +358,10 @@ def preprocess_IMDBdata(seed,filenames_train_valid,filenames_test,n_words=None,d
     testX  = np.array(testX)
     
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
-    
-    return trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test,maxlen,test_dict,test_dict_token,embedding_initMat
+    """
+    trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w = get_ready_features(n_words,INDEX_FROM,test_samples_num,save_mode,save_dir,embedding_dim,maxlen=None)
+
+    return trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w
+
+
+   
