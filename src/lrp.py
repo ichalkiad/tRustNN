@@ -392,7 +392,7 @@ def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,si
 
 
         
-def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_layers,test_data_token_json,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
+def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_layers,feed,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None,inv_dictionary_w=None):
 
     LRP = collections.OrderedDict()
     totalLRP = collections.OrderedDict()
@@ -402,12 +402,13 @@ def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_laye
    
     
     keys_test,data_test = data_format.get_data(test_data_json)
-    _,data_test_token = data_format.get_data(test_data_token_json)
+    _,data_ebd = data_format.get_data(ebd_json)
+
     for i in range(len(list(keys_test))):
          k = list(keys_test)[i]
-         kkeys = list(data_test[k].keys())
-         kdata = np.array(list(data_test[k].values()))
-         data_token = np.array(data_test_token[k])
+         kkeys = [inv_dictionary_w[id] for id in data_test[i]]
+         kdata = np.array(data_ebd[k]) #needs the embedding for each word
+         data_token = feed[i,:]
 
          lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,data_token,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class=1,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
 
