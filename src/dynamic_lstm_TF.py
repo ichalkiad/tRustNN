@@ -31,6 +31,7 @@ import os
 import heatmap
 import pickle
 
+
 ex = Experiment('IMDBMovieReview-LSTM')
 
 @ex.config
@@ -59,7 +60,7 @@ def config():
     internals = "all"    
     save_mode = "pickle"
     n_epoch = 10
-    test_size = 0.05 # -1 for whole test set
+    test_size = 50
     embedding_layer = 1
     
     #Dictionary describing the architecture of the network
@@ -144,54 +145,30 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     save_dir = save_path+run_id+"/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-        
-    with open(dictionary, 'rb') as handle:
-         dictionary_w = pickle.load(handle)
-    inv_dictionary_w = {v: k for k, v in dictionary_w.items()}
-
+  
     print("Extracting features...")
-    
-    #Train, valid and test sets. Have to return filenames_test as we have now shuffled them
-    
-    trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat = imdb_pre.preprocess_IMDBdata(seed=seed,filenames_train_valid=filenames_train_valid,filenames_test=filenames_test,n_words=n_words,dictionary=dictionary_w,embedding_dim=embedding_dim,test_size=test_size,save_test="save_test")
 
+    
+    
+    trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w = imdb_pre.preprocess_IMDBdata(n_words=n_words,INDEX_FROM=3,embedding_dim=embedding_dim,test_samples_num=test_size,save_dir=save_dir,save_mode=save_mode)
     """
     with open('trainValidtestNew.pickle','rb') as handle:
-        (trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat) = pickle.load(handle)
+        (trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w) = pickle.load(handle)
     
     with open(save_dir+"embedding_initMat.pickle", "wb") as f:
             pickle.dump(embedding_initMat,f)
-    """    
-
-    d = test_dict        
-    if save_mode=="pickle":
-        with open(save_dir+"test_data_input.pickle", "wb") as f:
-            pickle.dump(d,f)
-    else:
-        with open(save_dir+"test_data_input.json", "w") as f:
-            json.dump(d, f)
-    print("Exported test data dictionary...")
-    d = test_dict_token
-    if save_mode=="pickle":
-        with open(save_dir+"test_data_input_token.pickle", "wb") as f:
-            pickle.dump(d,f)
-    else:
-        with open(save_dir+"test_data_input_token.json", "w") as f:
-            json.dump(d, f)
-    print("Exported test data token dictionary...")
+        
     
-    
-    """
     with open('trainValidtestNew.pickle','wb') as handle:
-        pickle.dump((trainX,validX,testX,trainY,validY,testY,filenames_train,filenames_valid,filenames_test_sfd,maxlen,test_dict,test_dict_token,embedding_initMat),handle)
-    """
+        pickle.dump((trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w),handle)
+    """    
     
     print("Training model...")
     
-    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path,embedding_initMat)
+    model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path,embedding_initMat=embedding_initMat)
 
-    model.fit(trainX, trainY, validation_set=(validX, validY), n_epoch=n_epoch,show_metric=show_metric, batch_size=batch_size) 
-    
+    model.fit(trainX, trainY, validation_set=(validdX, validdY), n_epoch=n_epoch,show_metric=show_metric, batch_size=batch_size) 
+   
     print("Evaluating trained model on test set...")
     score = model.evaluate(testX,testY)
     print("Accuracy on test set: %0.4f%%" % (score[0] * 100))
@@ -199,11 +176,11 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     #Save model to json format
     export_serial_model(model,net_arch_layers,save_dir)
-    
+    print("Exported serial model...")
+
     #Get model's internals for 'feed' input
     feed = testX
-    input_files = filenames_test_sfd
-    
+    input_files = [i for i in range(feed.shape[0])]
     export_serial_lstm_data(model,layer_outputs,feed,input_files,internals,save_dir+"test_",save_mode=save_mode)
     
     print("Exported internals...")
@@ -215,11 +192,9 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     predicted_tgs = model.predict_label(feed)
          
-    LRP = lrp.lrp_full(model,embedding_layer,n_words,input_files,net_arch,net_arch_layers,save_dir+"test_data_input_token."+save_mode,save_dir+"test_data_input."+save_mode,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,save_dir+"test_model_internals_ebd."+save_mode,inv_dictionary_w,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs)
+    LRP = lrp.lrp_full(model,embedding_layer,n_words,save_dir+"test_model_internals_fc."+save_mode,save_dir+"test_model_internals_lstm_hidden."+save_mode,save_dir+"test_model_internals_lstm_states."+save_mode,save_dir+"test_model_internals_ebd."+save_mode,dictionary_w,eps=0.001,delta=0.0,save_dir=save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=predicted_tgs,inv_dictionary_w=inv_dictionary_w)
 
-   
     with open(save_dir+"lstm_predictions.pickle","wb") as handle:
         pickle.dump(predicted_tgs,handle)
     print("Finished with LRP and related data...now exiting...")
-    
 
