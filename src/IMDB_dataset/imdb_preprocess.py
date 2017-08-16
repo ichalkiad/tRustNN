@@ -304,7 +304,7 @@ def get_review_from_token(rev_matrix,inv_dictionary_w,save_mode,save_dir,n_words
     return embedding_initMat
 
 
-def get_ready_features(NUM_WORDS,INDEX_FROM,test_samples_num,save_mode,save_dir,embedding_dim,maxlen=None):
+def get_ready_features(NUM_WORDS,INDEX_FROM,test_samples_num,save_mode,save_dir,embedding_dim,maxlen):
 
     train,test = imdb.load_data(num_words=NUM_WORDS, index_from=INDEX_FROM)
     train_X,train_Y = train
@@ -346,7 +346,7 @@ def get_ready_features(NUM_WORDS,INDEX_FROM,test_samples_num,save_mode,save_dir,
 
 
 
-def preprocess_IMDBdata(n_words=None,INDEX_FROM=3,embedding_dim=300,test_samples_num=100,save_dir="/tmp/",save_mode="pickle"):
+def preprocess_IMDBdata(n_words=None,INDEX_FROM=3,embedding_dim=300,test_samples_num=100,save_dir="/tmp/",save_mode="pickle",max_len=100):
      
     """
     trainX,validX,testX,filenames_train,filenames_valid,filenames_test,test_dict,test_dict_token,embedding_initMat = extract_features(filenames_train_valid,filenames_test,seed,test_size,save_test,n_words,dictionary,embedding_dim)
@@ -359,7 +359,7 @@ def preprocess_IMDBdata(n_words=None,INDEX_FROM=3,embedding_dim=300,test_samples
     
     trainY,validY,testY = extract_labels(filenames_train,filenames_valid,filenames_test)
     """
-    trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w = get_ready_features(n_words,INDEX_FROM,test_samples_num,save_mode,save_dir,embedding_dim,maxlen=None)
+    trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w = get_ready_features(n_words,INDEX_FROM,test_samples_num,save_mode,save_dir,embedding_dim,max_len)
 
     return trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w
 
