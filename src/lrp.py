@@ -36,10 +36,9 @@ def get_lrp_timedata(LRP):
     
     return out_reversed[::-1] #reverse for time = 0...T
 
-def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
+def get_PosNegNeurons_dict(i,predictions,lrp_neurons,reviewLRP_data):
 # Get neurons that trigger exclusively for positive or negative reviews according to the network. Assign them to neutral if activate for both types of reviews.
 
-    reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
 
     pred = -1
     if predictions[i,0]==1:
@@ -51,7 +50,7 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
     if pred==0:
        for j in lrp_neurons:
            if reviewLRP_data["neg"]==[]:
-              reviewLRP_data["neg"] = [j]
+              reviewLRP_data["neg"].append(j)
            else:
               if j in reviewLRP_data["pos"]:
                    reviewLRP_data["pos"].remove(j)
@@ -61,15 +60,15 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons):
     elif pred==1:
        for j in lrp_neurons:
            if reviewLRP_data["pos"]==[]:
-              reviewLRP_data["pos"] = [j]
+              reviewLRP_data["pos"].append(j)
            else:
               if j in reviewLRP_data["neg"]:
                  reviewLRP_data["neg"].remove(j)
                  reviewLRP_data["neutral"].append(j)
               elif j not in reviewLRP_data["pos"]:
                  reviewLRP_data["pos"].append(j)
-    
-    return reviewLRP_data
+   
+    #return reviewLRP_data
 
 def get_NeuronType(reviewLRP_data,neuron_num):
 # Assign a label to each neuron based on whether it activates on positive-,negative-only or both types of reviews.
@@ -86,17 +85,14 @@ def get_NeuronType(reviewLRP_data,neuron_num):
 
 
 
-def get_NeuronSimilarity_AllReviews(neuronWords_data_fullTestSet):
-
-    model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
-    w2v   = dict(zip(model.index2word, model.syn0))
+def get_NeuronSimilarity_AllReviews(neuronWords_data_fullTestSet,final_embed_mat,embedding_size,dictionary_w):
 
     keys = list(neuronWords_data_fullTestSet.keys())
 
     dstMat = np.zeros((len(keys),len(keys)))
     for i in range((len(keys))):
         for j in range(i,len(keys)):
-                 dstMat[i,j] = neuron_distance(neuron1=list(neuronWords_data_fullTestSet[keys[i]]),neuron2=list(neuronWords_data_fullTestSet[keys[j]]),w2v=w2v)
+                 dstMat[i,j] = neuron_distance(neuron1=list(neuronWords_data_fullTestSet[keys[i]]),neuron2=list(neuronWords_data_fullTestSet[keys[j]]),final_embed_mat=final_embed_mat,embedding_size=embedding_size,dictionary_w=dictionary_w)
     
     return dstMat
 
@@ -123,26 +119,17 @@ def get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5):
     return nw_data        
 
 
-def neuron_value(test_data_json,review,neuron,w2v):
+def neuron_value(final_embed_mat,neuron,embedding_size,dictionary_w):
 
-    if w2v==None:
-        keys_test,data_test = data_format.get_data(test_data_json)
-        kkeys = list(data_test[review].keys())
-        kdata = data_test[review]
-        val = 0.0
-        for w in neuron:
-            val = val + np.array(list(kdata[w]))
-    else:
-        val = 0.0
-        for w in neuron:
-            if w in w2v:
-                val = val + np.array(w2v[w])
+    val = np.zeros((embedding_size,))
+    for w in neuron:
+            val = val + final_embed_mat[dictionary_w[w]]
 
-    return np.array(val).sum()/len(neuron)
+    return val.sum()/len(neuron)
 
 
-def neuron_distance(test_data_json=None,review=None,neuron1=[],neuron2=[],w2v=None):
-# neuron1, neuron2 are given as a list of words that trigger them most
+def neuron_distance(neuron1,neuron2,final_embed_mat,embedding_size,dictionary_w):
+# neuron1, neuron2 are given as a list of word indices that trigger them most
     
     n1_n2 = [item for item in neuron1 if item not in neuron2]
     n2_n1 = [item for item in neuron2 if item not in neuron1]
@@ -150,22 +137,22 @@ def neuron_distance(test_data_json=None,review=None,neuron1=[],neuron2=[],w2v=No
     if set(neuron1) == set(neuron2):
         return 0.0
     if (len(n1_n2)>=1 and len(n2_n1)>=1):
-        a = neuron_value(test_data_json,review,neuron1,w2v)
-        b = neuron_value(test_data_json,review,neuron2,w2v)
+        a = neuron_value(final_embed_mat,neuron1,embedding_size,dictionary_w)
+        b = neuron_value(final_embed_mat,neuron2,embedding_size,dictionary_w)
         return abs(a-b)
     else:
     #return arbitrary large value
-        return 1000
+        return 10000
 
     
-def get_DstMatrix_singleReview(review_MaxAct_json,test_data_json,review):
+def get_DstMatrix_singleReview(review_MaxAct_json,final_embed_mat,embedding_size,dictionary_w):
 # Get similarity matrix between neurons based on the custom distance function defined above, calculated based on a single review.
     keys,data = data_format.get_data(review_MaxAct_json)
     kkeys = list(keys)
     dstMat = np.zeros((len(kkeys),len(kkeys)))
     for i in range((len(kkeys))):
         for j in range(i,len(kkeys)):
-                 dstMat[i,j] = neuron_distance(test_data_json,review,list(data[kkeys[i]]),list(data[kkeys[j]]))
+                 dstMat[i,j] = neuron_distance(final_embed_mat=final_embed_mat,embedding_size=embedding_size,neuron1=list(data[kkeys[i]]),neuron2=list(data[kkeys[j]]),dictionary_w=dictionary_w)
             
     return dstMat
                 
@@ -178,7 +165,6 @@ def invert_dict_nonunique(d,topN):
             if i<topN:
                 newdict.setdefault(v, []).append(k)
                 i = i + 1
-            
     return newdict
 
 
@@ -189,7 +175,7 @@ def get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN=5):
      keys_hidden,data_hidden = data_format.get_data(lstm_hidden_json)
      kdata = data_hidden[k]
 
-     for i in range(len(kkeys)):
+     for i in range(min(len(kkeys),kdata.shape[0])):
           ord_cells = np.argsort(kdata[i,:],axis=0,kind='quicksort')
           d[kkeys[i]] = ord_cells[-(topN+1):-1].tolist()
 
@@ -200,10 +186,10 @@ def get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN=5):
              NtoW[str(i)] = []     
 
              
-     with open(save_dir+re.sub('/', '_', k[-18:-4])+"_ActCells.json", 'w') as f:
+     with open(save_dir+str(k)+"_ActCells.json", 'w') as f:
             json.dump(NtoW, f)
 
-     return re.sub('/', '_', k[-18:-4])+"_ActCells.json",NtoW
+     return str(k)+"_ActCells.json",NtoW
 
 
  
@@ -213,8 +199,8 @@ def get_topLRP_cells(lrp_fc,review,save_dir,topN=5):
      sorted_LRP = np.argsort(lrp_fc,axis=0,kind='quicksort')
      idx = sorted_LRP[-(topN+1):-1].tolist()
      
-     with open(save_dir+re.sub('/', '_', review[-18:-4])+"_lrpCells.json", 'w') as f:
-            json.dump({review:idx}, f)
+     with open(save_dir+str(review)+"_lrpCells.json", 'w') as f:
+            json.dump({review:idx}, f)  # review is string
 
      return idx
 
@@ -251,16 +237,25 @@ def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictiona
         ws = []
         scores = []
     
+        val = 0.0
+        res = 0.0
         for t in range(sequence_len):
             zj = lstm_first_input[t,:]
             zi = np.zeros((W.shape[0]))
             zi[z[t]] = 1
             R_t = Rout[t,:]
             lrp_ebd = lrp_linear(zi, W, b, zj, R_t, N, eps, delta, debug)
-            ws.append(dictionary[z[t]])
+            ws.append(dictionary[z[t]])  #get words out of indices
             scores.append(lrp_ebd[z[t]])
+            val = val + lrp_ebd[z[t]]
+            res = res + lrp_ebd.sum() - lrp_ebd[z[t]]
         
         LRP = collections.OrderedDict(words=ws,scores=scores)
+        if debug:
+            print("Embedding layer Rout_tot,lrp_tot,res_tot")
+            print(Rout.sum())
+            print(val)
+            print(res)
 
         return LRP
 
@@ -273,13 +268,18 @@ def lrp_fullyConnected(model,fc_name,last_lstm_output,fc_out,lrp_mask,d,T,classe
         layer = tflearn.variables.get_layer_variables_by_name(fc_name)
         W_fc = model.get_weights(layer[0])
         b_fc = model.get_weights(layer[1])
-        zi = last_lstm_output[T[0]-1,:]
+        zi = last_lstm_output[T[0]-1,:] #LSTM output to fc layer
         zj = fc_out
         W = W_fc
         b = np.zeros((classes)) 
         Rout = fc_out*lrp_mask
         N = 2*d
         lrp_fc = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
+        if debug:
+            print("FC layer out,Rout,lrp:")
+            print(fc_out)
+            print(Rout)
+            print(lrp_fc)
 
         return lrp_fc
 
@@ -331,6 +331,12 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
              zi = lstm_hidden[t-1,:]
              W = g_arr[T[1]:,:]
              lstm_lrp_h[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
+        if debug:
+            print("LSTM layer lrp_in,rlp_out_x_tot,lrp_out_tot,lrp_h_c:")
+            print(lrp_fc)
+            print(lstm_lrp_x.sum())
+            print(lstm_lrp_x.sum()+lstm_lrp_h.sum()+lstm_lrp_c.sum()+lstm_lrp_g.sum())
+            print(lstm_lrp_h.sum()+lstm_lrp_c.sum())
 
      
         return lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
@@ -357,7 +363,7 @@ def load_intermediate_outputs(input_filename,embedding_json,fc_json,lstm_hidden_
 
 
 
-def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,single_input_data,data_token,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
+def lrp_single_input(model,embedding_layer,embedding_init_mat,n_words,input_filename,data_token,eps,delta,fc_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=False):
 
         
     with model.session.as_default():
@@ -374,56 +380,64 @@ def lrp_single_input(model,embedding_layer,n_words,layer_names,input_filename,si
         #LRP through embedding layer if needed
         if embedding_layer:
             lstm_name = "lstm"        
-            feed = embedding_output_data
+    
+            feed = embedding_init_mat[data_token,:]
             lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
            
             emb_name = "embedding"
             feed = data_token
-            lrp_input = lrp_embedding(model,emb_name,n_words,feed,embedding_output_data,lstm_lrp_x,dictionary,eps,delta,debug)
-
+            lrp_input = lrp_embedding(model,emb_name,n_words,feed,embedding_init_mat[data_token,:],lstm_lrp_x,dictionary,eps,delta,debug)
+        
         else:
+            raise ValueError("Add embedding layer")
+            """
             #LRP through lstm layer
             lstm_name = "lstm"        
             feed = single_input_data
             lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_lstm(model,lstm_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,lstm_actv2,eps,delta,debug)
+            """
 
-
-    return lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
+    return lrp_input,lrp_fc,lstm_lrp_x
 
 
         
-def lrp_full(model,embedding_layer,n_words,input_filename,net_arch,net_arch_layers,test_data_token_json,test_data_json,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None):
+def lrp_full(model,embedding_layer,n_words,feed,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,eps,delta,save_dir,lstm_actv1=expit,lstm_actv2=np.tanh,topN=5,debug=False,predictions=None,inv_dictionary_w=None):
 
+
+    layer = tflearn.variables.get_layer_variables_by_name("embedding")
+    final_embedding_mat = model.get_weights(layer[0])
+
+    reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
     LRP = collections.OrderedDict()
     totalLRP = collections.OrderedDict()
 
     neuronWords_jsons = []
     similarityMatrix_PerReview = collections.OrderedDict()
-   
+    embedding_size = final_embedding_mat.shape[1]
     
-    keys_test,data_test = data_format.get_data(test_data_json)
-    _,data_test_token = data_format.get_data(test_data_token_json)
-    for i in range(len(list(keys_test))):
-         k = list(keys_test)[i]
-         kkeys = list(data_test[k].keys())
-         kdata = np.array(list(data_test[k].values()))
-         data_token = np.array(data_test_token[k])
+    keys_test = feed.shape[0] # 1,...,num_of_test_reviews
 
-         lrp_input,lrp_fc,lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c) = lrp_single_input(model,embedding_layer,n_words,net_arch_layers,k,kdata,data_token,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,dictionary,target_class=1,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
-
-         lrp_neurons = get_topLRP_cells(lrp_fc,k,save_dir,topN)
-         reviewLRP_data = get_PosNegNeurons_dict(i,predictions,lrp_neurons) 
-         review_filename, _ = get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,k,save_dir,topN)
-         dstMat = get_DstMatrix_singleReview(save_dir+review_filename,test_data_json,k)
+    for i in range(keys_test):
+         data_token = feed[i,:].astype(int) #array of word indices corresponding to review i
+         kkeys = [inv_dictionary_w[int(id)] for id in data_token.tolist()] #list of words in review
+         kdata = final_embedding_mat  # n_words x embedding_size
+         
+         
+         lrp_input,lrp_fc,lstm_lrp_x = lrp_single_input(model,embedding_layer,kdata,n_words,i,data_token,eps,delta,fc_out_json,lstm_hidden_json,lstm_cell_json,ebd_json,inv_dictionary_w,target_class=1,classes=2,lstm_actv1=expit,lstm_actv2=np.tanh,debug=debug)
+         
+         lrp_neurons = get_topLRP_cells(lrp_fc,i,save_dir,topN) #get highest-LRP neurons in lstm layer
+         get_PosNegNeurons_dict(i,predictions,lrp_neurons,reviewLRP_data) 
+         review_filename, _ = get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,i,save_dir,topN) #get the N words that excite each neuron the maximum
+         dstMat = get_DstMatrix_singleReview(save_dir+review_filename,final_embedding_mat,embedding_size,dictionary)
          neuronWords_jsons.append(review_filename)
-         similarityMatrix_PerReview[k] = dstMat
+         similarityMatrix_PerReview[i] = dstMat
 
-         LRP[k] = lrp_input # contains LRP of input words
-         totalLRP[k] = collections.OrderedDict(words=kkeys,lrp=lrp_fc) # contains LRP halfway through network, i.e. LRP of LSTM neurons
+         LRP[i] = lrp_input # contains LRP of input words
+         totalLRP[i] = collections.OrderedDict(words=kkeys,lrp=lrp_fc) # contains LRP halfway through network, i.e. LRP of LSTM neurons
          
     neuron_types = get_NeuronType(reviewLRP_data,lrp_fc.shape[0])
     excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)
-    similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(excitingWords_fullSet)
+    similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(excitingWords_fullSet,final_embedding_mat,embedding_size,dictionary)
     with open(save_dir+"exploratoryDataFull.pickle", 'wb') as f:
         pickle.dump((excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP), f)
     print("Saved auxiliary data dictionaries and distance matrices...")

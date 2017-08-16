@@ -55,7 +55,7 @@ def export_serial_lstm_data(model,layer_outputs,feed,input_files,data="lstm",sav
                data_out = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed})
                for i in range(len(input_files)):
                    fc_outputs[input_files[i]] = data_out[i,:].tolist()
-
+                   
            keys = [k for k in list(layer_outputs.keys()) if "embedding" in k]
            for k in keys:
                data_out = layer_outputs[k].eval(feed_dict={'InputData/X:0':feed})
