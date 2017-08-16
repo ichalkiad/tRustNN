@@ -67,7 +67,7 @@ def get_PosNegNeurons_dict(i,predictions,lrp_neurons,reviewLRP_data):
                  reviewLRP_data["neutral"].append(j)
               elif j not in reviewLRP_data["pos"]:
                  reviewLRP_data["pos"].append(j)
-    print(reviewLRP_data)
+   
     #return reviewLRP_data
 
 def get_NeuronType(reviewLRP_data,neuron_num):
@@ -85,14 +85,14 @@ def get_NeuronType(reviewLRP_data,neuron_num):
 
 
 
-def get_NeuronSimilarity_AllReviews(neuronWords_data_fullTestSet,final_embed_mat,embedding_size):
+def get_NeuronSimilarity_AllReviews(neuronWords_data_fullTestSet,final_embed_mat,embedding_size,dictionary_w):
 
     keys = list(neuronWords_data_fullTestSet.keys())
 
     dstMat = np.zeros((len(keys),len(keys)))
     for i in range((len(keys))):
         for j in range(i,len(keys)):
-                 dstMat[i,j] = neuron_distance(neuron1=list(neuronWords_data_fullTestSet[keys[i]]),neuron2=list(neuronWords_data_fullTestSet[keys[j]]),final_embed_mat=final_embed_mat,embedding_size=embedding_size)
+                 dstMat[i,j] = neuron_distance(neuron1=list(neuronWords_data_fullTestSet[keys[i]]),neuron2=list(neuronWords_data_fullTestSet[keys[j]]),final_embed_mat=final_embed_mat,embedding_size=embedding_size,dictionary_w=dictionary_w)
     
     return dstMat
 
@@ -119,16 +119,16 @@ def get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5):
     return nw_data        
 
 
-def neuron_value(final_embed_mat,neuron,embedding_size):
+def neuron_value(final_embed_mat,neuron,embedding_size,dictionary_w):
 
     val = np.zeros((embedding_size,))
     for w in neuron:
-            val = val + final_embed_mat[w]
+            val = val + final_embed_mat[dictionary_w[w]]
 
     return val.sum()/len(neuron)
 
 
-def neuron_distance(neuron1,neuron2,final_embed_mat,embedding_size):
+def neuron_distance(neuron1,neuron2,final_embed_mat,embedding_size,dictionary_w):
 # neuron1, neuron2 are given as a list of word indices that trigger them most
     
     n1_n2 = [item for item in neuron1 if item not in neuron2]
@@ -137,22 +137,22 @@ def neuron_distance(neuron1,neuron2,final_embed_mat,embedding_size):
     if set(neuron1) == set(neuron2):
         return 0.0
     if (len(n1_n2)>=1 and len(n2_n1)>=1):
-        a = neuron_value(final_embed_mat,neuron1,embedding_size)
-        b = neuron_value(final_embed_mat,neuron,embedding_size)
+        a = neuron_value(final_embed_mat,neuron1,embedding_size,dictionary_w)
+        b = neuron_value(final_embed_mat,neuron2,embedding_size,dictionary_w)
         return abs(a-b)
     else:
     #return arbitrary large value
         return 10000
 
     
-def get_DstMatrix_singleReview(review_MaxAct_json,final_embed_mat,embedding_size):
+def get_DstMatrix_singleReview(review_MaxAct_json,final_embed_mat,embedding_size,dictionary_w):
 # Get similarity matrix between neurons based on the custom distance function defined above, calculated based on a single review.
     keys,data = data_format.get_data(review_MaxAct_json)
     kkeys = list(keys)
     dstMat = np.zeros((len(kkeys),len(kkeys)))
     for i in range((len(kkeys))):
         for j in range(i,len(kkeys)):
-                 dstMat[i,j] = neuron_distance(final_embed_mat=final_embed_mat,embedding_size=embedding_size,neuron1=list(data[kkeys[i]]),neuron2=list(data[kkeys[j]]))
+                 dstMat[i,j] = neuron_distance(final_embed_mat=final_embed_mat,embedding_size=embedding_size,neuron1=list(data[kkeys[i]]),neuron2=list(data[kkeys[j]]),dictionary_w=dictionary_w)
             
     return dstMat
                 
@@ -165,7 +165,6 @@ def invert_dict_nonunique(d,topN):
             if i<topN:
                 newdict.setdefault(v, []).append(k)
                 i = i + 1
-            
     return newdict
 
 
@@ -429,7 +428,7 @@ def lrp_full(model,embedding_layer,n_words,feed,fc_out_json,lstm_hidden_json,lst
          lrp_neurons = get_topLRP_cells(lrp_fc,i,save_dir,topN) #get highest-LRP neurons in lstm layer
          get_PosNegNeurons_dict(i,predictions,lrp_neurons,reviewLRP_data) 
          review_filename, _ = get_NeuronExcitingWords_dict(lstm_hidden_json,kkeys,i,save_dir,topN) #get the N words that excite each neuron the maximum
-         dstMat = get_DstMatrix_singleReview(save_dir+review_filename,final_embedding_mat,embedding_size)
+         dstMat = get_DstMatrix_singleReview(save_dir+review_filename,final_embedding_mat,embedding_size,dictionary)
          neuronWords_jsons.append(review_filename)
          similarityMatrix_PerReview[i] = dstMat
 
@@ -438,7 +437,7 @@ def lrp_full(model,embedding_layer,n_words,feed,fc_out_json,lstm_hidden_json,lst
          
     neuron_types = get_NeuronType(reviewLRP_data,lrp_fc.shape[0])
     excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)
-    similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(excitingWords_fullSet,final_embedding_mat,embedding_size)
+    similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(excitingWords_fullSet,final_embedding_mat,embedding_size,dictionary)
     with open(save_dir+"exploratoryDataFull.pickle", 'wb') as f:
         pickle.dump((excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP), f)
     print("Saved auxiliary data dictionaries and distance matrices...")

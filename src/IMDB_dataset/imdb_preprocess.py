@@ -327,12 +327,16 @@ def get_ready_features(NUM_WORDS,INDEX_FROM,test_samples_num,save_mode,save_dir,
 
     trainX = sequence.pad_sequences(train_X, maxlen=maxlen)
     validX = sequence.pad_sequences(valid_X, maxlen=maxlen)
+    
+    full_revs = np.array([np.count_nonzero(validX[i,:],axis=0) for i in range(validX.shape[0])]).astype(int)
+    full_revs_idx = np.argwhere(full_revs==maxlen).flatten()
+    
 
     testX = np.zeros((test_samples_num,maxlen))
     testY = np.zeros((test_samples_num,validY.shape[1]))
-    test_idx = np.array([random.randrange(0,validX.shape[0],1) for k in range(test_samples_num)])
-    testX[:,:] = validX[test_idx,:]
-    testY[:,:] = validY[test_idx,:]
+    test_idx = np.array([random.randrange(0,full_revs_idx.shape[0],1) for k in range(test_samples_num)])
+    testX[:,:] = validX[full_revs_idx[test_idx],:]
+    testY[:,:] = validY[full_revs_idx[test_idx],:]
     valid_idx = [item for item in [k for k in range(validX.shape[0])] if item not in test_idx.tolist()]
     validdX = np.zeros((len(valid_idx),maxlen))
     validdY = np.zeros((len(valid_idx),validY.shape[1]))
