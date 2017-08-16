@@ -76,17 +76,17 @@ def config():
 
 def get_wcloud(LRP,k,save_dir,color_dict=None,gate="out",text=None):
 
-     save_filename = re.sub('/', '_', k[-18:-4])+"_word_cloud.png"
+     save_filename = str(k)+"_word_cloud.png"
      try:
-         os.remove(save_dir+re.sub('/', '_', k[-18:-4])+"_word_cloud.png")
+         os.remove(save_dir+str(k)+"_word_cloud.png")
      except OSError:
          pass
      try:
-         os.remove(save_dir+re.sub('/', '_', k[-18:-4])+"_word_cloud_f.png")
+         os.remove(save_dir+str(k)+"_word_cloud_f.png")
      except OSError:
          pass
      try:
-         os.remove(save_dir+re.sub('/', '_', k[-18:-4])+"_word_cloud_i.png")
+         os.remove(save_dir+str(k)+"_word_cloud_i.png")
      except OSError:
          pass
 
