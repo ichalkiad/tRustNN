@@ -91,8 +91,6 @@ def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None,mode="nn
         spectral = ['#aed581','#ff5722','#8d6e63','#006064','#4caf50','#ff6f00','#3e2723']
     
     #keep only review name
-    if review!=None:
-        review_part = review.split('/')[-1][:-4]
     y_pred = None
     colors = None
     
@@ -100,8 +98,7 @@ def apply_cluster(data,algorithm,n_clusters,review=None,neuronData=None,mode="nn
         x_cl, y_pred = clustering(data, "KMeans", n_clusters)
     else:
         if algorithm == "DBSCAN - selected review":
-            reviewData_name = [s for s in list(neuronData.keys()) if review_part in s][0]
-            dstMat = neuronData[reviewData_name]
+            dstMat = neuronData[review]
             db = cluster.DBSCAN(eps=0.2,metric='precomputed').fit(dstMat)
             y_pred = db.labels_.astype(np.int)
         elif algorithm == "DBSCAN - all reviews":

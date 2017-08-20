@@ -30,16 +30,16 @@ def button_callback():
 
 def get_wc_colourGroups(rawInput_source):
 
-    words  = rawInput_source.data['w']
+    words  = np.array(rawInput_source.data['w'])
     colors = rawInput_source.data['z']
     color_dict = dict()
-    
+
     for color in sorted(data_format.list_duplicates(colors)):
         color_dict[color[0]] = list(words[color[1]])
 
     return color_dict
 
-def get_selections(keys):
+def get_selections():
     
     gates = ["IN - what to add on","NOT IMPORTANT - what to drop off","IMPORTANT - where to focus on"]
     select_gate = Select(title="Gate", value="IN - what to add on", options=gates)
@@ -61,10 +61,10 @@ def get_clustering_selections(algorithms_neurons):
 
     return (algorithm_select_neuron,cluster_slider)
 
-def get_rawInput_selections():
+def get_rawInput_selections(keys_raw):
 
-    review = [r for r in keys_raw]
-    select_rawInput = Select(title="Input text", value=review[0], options=review)
+    review = [str(r) for r in list(keys_raw)]
+    select_rawInput = Select(title="Input review", value=review[0], options=review)
 
     return select_rawInput
 
@@ -75,23 +75,14 @@ def get_projection_selections(algorithms):
     return algorithm_select
 
 
-def get_rawText_data(rawInput_selections,keys_raw,data_raw):
+def get_rawText_data(rawInput_selections,keys_raw,data_raw,feed,embed_mat):
 
-    data = []
-    words = []
-    if rawInput_selections == "All":
-        for k in keys_raw:
-            kkeys = data_raw[k].keys()
-            for kk in kkeys:
-                data.append(data_raw[k][kk])
-                words.append(kk)
-    else:
-        kkeys = data_raw[rawInput_selections].keys()
-        for k in kkeys:
-            data.append(data_raw[rawInput_selections][k])
-            words.append(k)
 
-    return np.transpose(np.array(data)),np.array(words)
+    text_review = str(data_raw[int(rawInput_selections)])
+    words = str(text_review).split()
+    word_embeddings = [embed_mat[i,:] for i in  list(feed[int(rawInput_selections),:].astype(int))]
+
+    return text_review,words,word_embeddings
 
 
 """
@@ -112,12 +103,12 @@ def update_source(attrname, old, new):
         gate_value = "output_gate"
     
     x = data[lstm_layer_name][gate_value]
-
+    text_review,words,word_embeddings = get_rawText_data(rawInput_selections.value,keys_raw,data_raw,testX,embed_mat)
+    
     #update raw input
-    text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-    text_banner.text = open(text_src,"r").read()
-    text_banner2.text = open(text_src,"r").read()
-    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][0] == 0 else "Network decision : NEGATIVE"
+    text_banner.text = text_review
+    text_banner2.text = text_review
+    label_banner.text = "Network decision : POSITIVE" if predicted_tgs[int(rawInput_selections.value)][0] == 0 else "Network decision : NEGATIVE"
 
     #update dimension reduction source
     algorithm = projection_selections.value
@@ -130,7 +121,7 @@ def update_source(attrname, old, new):
 
     if algorithm_cl_neurons=="Internal state clustering (LSTM's outputs)":
         text_set.text = "Internal state clustering - selected review: Clusters representation of input review at every timestep as learned by the LSTM layer." 
-        lstm_hidVal = np.array(lstm_hidden[rawInput_selections.value])
+        lstm_hidVal = np.array(lstm_hidden[int(rawInput_selections.value)])
         x_pr,performance_metric = dim_reduction.project(np.transpose(lstm_hidVal), algorithm, knn, labels)
         cluster_labels, colors, _ = clustering.apply_cluster(data=np.transpose(lstm_hidVal),algorithm=algorithm_cl_neurons,n_clusters=n_clusters,review=None,neuronData=None,mode="nn")
     
@@ -158,26 +149,25 @@ def update_source(attrname, old, new):
             text_set.text = "KMeans: Clusters neurons based on their gate values after training."
         elif algorithm_cl_neurons=="DBSCAN - selected review":
             text_set.text = "DBSCAN - selected review: Clusters neurons based on how related their most activating words are. List of activating words generated from seleceted review."
-        neuronData = similarityMatrix_PerReview       
-        cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=rawInput_selections.value,neuronData=neuronData,mode="nn")
+        neuronData = similarityMatrix_PerReview
+        cluster_labels, colors, _ = clustering.apply_cluster(x,algorithm_cl_neurons,n_clusters,review=int(rawInput_selections.value),neuronData=neuronData,mode="nn")
 
         
     proj_source.data = dict(x=x_pr[:, 0], y=x_pr[:, 1], z=colors)
     
 
-    text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw) ###LOADS EMBEDDINGS HERE
-    w2v_labels, w2v_colors, _ = clustering.apply_cluster(text_data,"KMeans - selected gate",n_clusters,mode="wc")
-    rawInput_source.data = dict(z=w2v_colors, w=text_words)
+    w2v_labels, w2v_colors, _ = clustering.apply_cluster(np.array(word_embeddings),"KMeans - selected gate",n_clusters,mode="wc")
+    rawInput_source.data = dict(z=w2v_colors, w=words)
     color_dict = get_wc_colourGroups(rawInput_source)
     if gate_value=="input_gate":
-        wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
+        wc_filename,wc_img,wc_words = get_wcloud(LRP,int(rawInput_selections.value),load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
     elif gate_value=="forget_gate":
-        wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="forget")
+        wc_filename,wc_img,wc_words = get_wcloud(LRP,int(rawInput_selections.value),load_dir,color_dict=color_dict,gate="forget")
     elif gate_value=="output_gate":
-        wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="out")
+        wc_filename,wc_img,wc_words = get_wcloud(LRP,int(rawInput_selections.value),load_dir,color_dict=color_dict,gate="out")
 
-    words_to_be_highlighted = [i for i in wc_words and totalLRP[rawInput_selections.value]['words']]
-    lrp_source.data['lrp'] = scaler.fit_transform(np.array(totalLRP[rawInput_selections.value]['lrp'].tolist()).reshape(-1,1))
+    words_to_be_highlighted = [i for i in wc_words and totalLRP[int(rawInput_selections.value)]['words']]
+    lrp_source.data['lrp'] = scaler.fit_transform(np.array(totalLRP[int(rawInput_selections.value)]['lrp'].tolist()).reshape(-1,1))
     tap_source.data['wc_words'] = words_to_be_highlighted
     wc_plot.add_glyph(img_source, ImageURL(url=dict(value=load_dir+wc_filename), x=0, y=0, anchor="bottom_left"))
     
@@ -198,31 +188,30 @@ lstm_layer_name = "lstm"
 #Get trained model parameters: weights and gate values
 keys,data = data_format.get_data(load_dir+"model.json")
 #Get raw input
-keys_raw,data_raw = data_format.get_data(load_dir+"test_data_input.pickle")
+keys_raw,data_raw = data_format.get_data(load_dir+"test_data_text.pickle")
 
 #Load auxiliary data
 with open(load_dir+"lstm_predictions.pickle","rb") as handle:
     predicted_tgs = pickle.load(handle)
 with open(load_dir+"exploratoryDataFull.pickle", 'rb') as f:
-    excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP = pickle.load(f)
+    (testX,embed_mat,excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP) = pickle.load(f)
 
 
 #neuronExcitingWords_AllReviews = list((excitingWords_fullSet.values()))
 _,lstm_hidden = data_format.get_data(load_dir+"test_model_internals_lstm_hidden.pickle")
-_,learned_embeddings = data_format.get_data(load_dir+"test_model_internals_ebd.pickle")
+#_,learned_embeddings = data_format.get_data(load_dir+"test_model_internals_ebd.pickle")
 
 #Get preset buttons' selections
         
 #LSTM gates
-gate_selections = get_selections(keys)
+gate_selections = get_selections()
 #Dimensionality reduction
 projection_selections = get_projection_selections(dim_reduction.get_dimReduction_algorithms())
 #Clustering
 algorithm_neurons = clustering.get_cluster_algorithms()
 clustering_selections = get_clustering_selections(algorithm_neurons)
 #Raw input clustering
-rawInput_selections = get_rawInput_selections()
-
+rawInput_selections = get_rawInput_selections(keys_raw)
 tools = "pan,wheel_zoom,box_zoom,reset"
 
 #Dimensionality reduction
@@ -231,7 +220,6 @@ data_pr = data[lstm_layer_name][gate_selections.value]
 X, performance_metric = dim_reduction.project(data_pr, "PCA", n_neighbors=5, labels=labels)
 X_cluster_labels, X_colors, _ = clustering.apply_cluster(data_pr,algorithm=clustering_selections[0].value,n_clusters=int(clustering_selections[1].value),mode="nn")
 proj_source = ColumnDataSource(dict(x=X[:,0],y=X[:,1],z=X_colors))
-#  + performance_metric[0] + performance_metric[1]
 project_plot = figure(title=projection_selections.value,tools=tools,plot_width=300, plot_height=300)
 scatter_tap = project_plot.scatter('x', 'y', marker='circle', size=10, fill_color='z', alpha=0.5, source=proj_source, legend=None)
 project_plot.xaxis.axis_label = 'Dim 1'
@@ -239,30 +227,29 @@ project_plot.yaxis.axis_label = 'Dim 2'
 taptool = TapTool()
 project_plot.add_tools(taptool)
 
-
 #Input text
-text_data,text_words = get_rawText_data(rawInput_selections.value,keys_raw,data_raw)  ###LOADS EMBEDDINGS HERE
-w2v_labels, w2v_colors, _ = clustering.apply_cluster(text_data,algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[1].value),mode="wc")
-rawInput_source = ColumnDataSource(dict(z=w2v_colors,w=text_words))
+text_review,words,word_embeddings = get_rawText_data(rawInput_selections.value,keys_raw,data_raw,testX,embed_mat) 
+w2v_labels, w2v_colors, _ = clustering.apply_cluster(np.array(word_embeddings),algorithm="KMeans - selected gate",n_clusters=int(clustering_selections[1].value),mode="wc")
+rawInput_source = ColumnDataSource(dict(z=w2v_colors,w=words))
 
-
-text_src = re.sub('/home/icha/','/home/yannis/Desktop/tRustNN/',rawInput_selections.value)
-text_banner = Div(text=open(text_src,"r").read(), width=1300, height=100)
-text_banner2 = Div(text=open(text_src,"r").read(), width=1300, height=100)
-label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[list(keys_raw).index(rawInput_selections.value)][0] == 0 else "Network decision : NEGATIVE", width=200, height=30)
+text_banner = Div(text=text_review, width=1300, height=100)
+text_banner2 = Div(text=text_review, width=1300, height=100)
+label_banner = Paragraph(text="Network decision : POSITIVE" if predicted_tgs[int(rawInput_selections.value)][0] == 0 else "Network decision : NEGATIVE", width=200, height=30)
 
 button = Button(label="Reset text")
 button.on_click(button_callback)
 
+
 #WordCloud
 color_dict = get_wc_colourGroups(rawInput_source) #Colors based on similarity in embedding space
-wc_filename,wc_img,wc_words = get_wcloud(LRP,rawInput_selections.value,load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
-words_to_be_highlighted = list(set(wc_words).intersection(totalLRP[rawInput_selections.value]['words']))
+wc_filename,wc_img,wc_words = get_wcloud(LRP,int(rawInput_selections.value),load_dir,color_dict=color_dict,gate="in",text=text_banner.text)
+words_to_be_highlighted = list(set(wc_words).intersection(totalLRP[int(rawInput_selections.value)]['words']))
 highlight_source = ColumnDataSource(dict(scores=[]))
 tap_source = ColumnDataSource(dict(wc_words=words_to_be_highlighted))
 scaler = MinMaxScaler(copy=True, feature_range=(-1, 1))
-lrp_source = ColumnDataSource(dict(lrp=scaler.fit_transform(np.array(totalLRP[rawInput_selections.value]['lrp'].tolist()).reshape(-1,1))))
+lrp_source = ColumnDataSource(dict(lrp=scaler.fit_transform(np.array(totalLRP[int(rawInput_selections.value)]['lrp'].tolist()).reshape(-1,1))))
 #totalLRP : how relevant is each LSTM neuron
+
 
 
 taptool.callback = CustomJS(args=dict(source=tap_source,lrp=lrp_source,high=highlight_source,div=text_banner,div_orig=text_banner2),
