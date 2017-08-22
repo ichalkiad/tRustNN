@@ -56,7 +56,7 @@ def config():
     n_words = 10000 #89527 
     dictionary = "/home/icha/tRustNN/imdb_dict.pickle" #"/home/yannis/Desktop/tRustNN/imdb_dict.pickle"
     embedding_dim = 150
-    ckp_path = "../sacred_models/lstm_embedding_FINALTEST_3/"
+    ckp_path = "../sacred_models/" + run_id
     internals = "all"    
     save_mode = "pickle"
     n_epoch = 10
@@ -84,7 +84,7 @@ def config():
 def build_network(net_arch,net_arch_layers,tensorboard_verbose,sequence_length,embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path=None,embedding_initMat=None):
 
     layer_outputs = dict()
-   
+    print(net_arch_layers)
     # Network building
     if embedding_layer:
         net = tflearn.input_data([None,sequence_length]) 
@@ -149,7 +149,7 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
   
     print("Extracting features...")
 
-    """   
+    """
     trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w = imdb_pre.preprocess_IMDBdata(n_words=n_words,INDEX_FROM=3,embedding_dim=embedding_dim,test_samples_num=test_size,save_dir=save_dir,save_mode=save_mode,max_len=max_len)
     """
     with open(save_dir+"trainData.pickle","rb") as handle:
@@ -161,12 +161,12 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     
     with open(save_dir+"trainData.pickle",'wb') as handle:
         pickle.dump((trainX,trainY,validdX,validdY,testX,testY,embedding_initMat,dictionary_w,inv_dictionary_w),handle)
-    """    
+    """   
     
     print("Training model...")
     
     model, layer_outputs = build_network(net_arch,net_arch_layers,tensorboard_verbose,trainX.shape[1],embedding_dim,tensorboard_dir,batch_size,n_words,embedding_layer,ckp_path,embedding_initMat=embedding_initMat)
-    """
+    """    
     model.fit(trainX, trainY, validation_set=(validdX, validdY), n_epoch=n_epoch,show_metric=show_metric, batch_size=batch_size) 
    
     print("Evaluating trained model on test set...")
@@ -184,15 +184,15 @@ def train(seed,net_arch,net_arch_layers,save_path,n_epoch,tensorboard_verbose,sh
     del tf.get_collection_ref(tf.GraphKeys.TRAIN_OPS)[:]
     model.save(save_dir+"tf_model.tfl")
     print("Saved model...")    
+    
+    
     """
-    
-    
     sess = model.session
     saver = model.trainer.saver
     saver.restore(sess,tf.train.latest_checkpoint(ckp_path))
     predicted_tgs = model.predict_label(testX)
     
-
+    
     #Get model's internals for 'feed' input
     feed = testX
     input_files = [i for i in range(feed.shape[0])]

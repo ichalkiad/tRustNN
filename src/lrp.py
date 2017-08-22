@@ -214,12 +214,16 @@ def get_gate(W,b,in_concat):
 
 def get_gates_out_t(in_concat,b,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2):
 
-     i_t = lstm_actv1(get_gate(i_arr,b[0:d],in_concat))
-     g_t = lstm_actv2(get_gate(g_arr,b[d:2*d],in_concat))
-     f_t = lstm_actv1(get_gate(f_arr,b[2*d:3*d],in_concat))
-     o_t = lstm_actv1(get_gate(o_arr,b[3*d:4*d],in_concat))
+     i_t_pre = get_gate(i_arr,b[0:d],in_concat)
+     i_t = lstm_actv1(i_t_pre)
+     g_t_pre = get_gate(g_arr,b[d:2*d],in_concat)
+     g_t = lstm_actv2(g_t_pre)
+     f_t_pre = get_gate(f_arr,b[2*d:3*d],in_concat)
+     f_t = lstm_actv1(f_t_pre)
+     o_t_pre = get_gate(o_arr,b[3*d:4*d],in_concat)
+     o_t = lstm_actv1(o_t_pre)
 
-     return i_t,g_t,f_t
+     return i_t,g_t,f_t,o_t,i_t_pre,g_t_pre,f_t_pre,o_t_pre
 
 
 def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictionary,eps,delta,debug):
@@ -236,7 +240,8 @@ def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictiona
         Rout = lrp_lstm
         ws = []
         scores = []
-    
+        Rin_chk = np.zeros((sequence_len,W.shape[0]))
+
         val = 0.0
         res = 0.0
         for t in range(sequence_len):
@@ -249,13 +254,14 @@ def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictiona
             scores.append(lrp_ebd[z[t]])
             val = val + lrp_ebd[z[t]]
             res = res + lrp_ebd.sum() - lrp_ebd[z[t]]
-        
+            Rin_chk[t,:]=lrp_ebd
+
         LRP = collections.OrderedDict(words=ws,scores=scores)
         if debug:
-            print("Embedding layer Rout_tot,lrp_tot,res_tot")
+            print("Embedding layer Rout_tot,Rin_tot")
             print(Rout.sum())
-            print(val)
-            print(res)
+            print(val+res)
+
 
         return LRP
 
@@ -264,22 +270,24 @@ def lrp_embedding(model,emb_name,n_words,feed,lstm_first_input,lrp_lstm,dictiona
 
 def lrp_fullyConnected(model,fc_name,last_lstm_output,fc_out,lrp_mask,d,T,classes,eps,delta,debug):
 #last_lstm_output : the lstm layer that connects to the fully connected
-     
+
         layer = tflearn.variables.get_layer_variables_by_name(fc_name)
         W_fc = model.get_weights(layer[0])
         b_fc = model.get_weights(layer[1])
-        zi = last_lstm_output[T[0]-1,:] #LSTM output to fc layer
+        zi = last_lstm_output[-1,:] #LSTM output to fc layer
         zj = fc_out
         W = W_fc
         b = np.zeros((classes)) 
         Rout = fc_out*lrp_mask
-        N = 2*d
+        N = d
+
+
         lrp_fc = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
         if debug:
-            print("FC layer out,Rout,lrp:")
-            print(fc_out)
+            print("FC layer Rout,Rin:")
             print(Rout)
-            print(lrp_fc)
+            print(lrp_fc.sum())
+
 
         return lrp_fc
 
@@ -308,7 +316,7 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
              x_t = feed[t,:]
              h_t = lstm_hidden[t-1,:]
              in_concat = np.concatenate((x_t,h_t),axis=0)
-             i_t,g_t,f_t = get_gates_out_t(in_concat,b_tot,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2)
+             i_t,g_t,f_t,o_t,i_t_pre,g_t_pre,f_t_pre,o_t_pre = get_gates_out_t(in_concat,b_tot,i_arr,f_arr,g_arr,o_arr,d,lstm_actv1,lstm_actv2)
              zi = f_t*lstm_cell[t-1,:]
              zj = lstm_cell[t,:]
              W = np.identity(d)
@@ -320,25 +328,24 @@ def lrp_lstm(model,layer_name,feed,T,d,lrp_fc,lstm_hidden,lstm_cell,lstm_actv1,l
              zi = i_t*g_t
              lstm_lrp_g[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
 
-             zi = feed[t,:]
-             zj = g_t
+             zi = x_t
+             zj = g_t_pre
              W = g_arr[0:T[1],:]
              b = b_tot[d:2*d]
              Rout = lstm_lrp_g[t,:]
              N = d + T[1]
              lstm_lrp_x[t,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
              
-             zi = lstm_hidden[t-1,:]
+             zi = h_t
              W = g_arr[T[1]:,:]
              lstm_lrp_h[t-1,:] = lrp_linear(zi, W, b, zj, Rout, N, eps, delta, debug)
+ 
         if debug:
-            print("LSTM layer lrp_in,rlp_out_x_tot,lrp_out_tot,lrp_h_c:")
-            print(lrp_fc)
-            print(lstm_lrp_x.sum())
-            print(lstm_lrp_x.sum()+lstm_lrp_h.sum()+lstm_lrp_c.sum()+lstm_lrp_g.sum())
-            print(lstm_lrp_h.sum()+lstm_lrp_c.sum())
+            print("LSTM layer Rout,Rin:")
+            print(lrp_fc.sum())
+            print(lstm_lrp_x.sum()+lstm_lrp_h[-1,:].sum()+lstm_lrp_c[-1,:].sum())
+ 
 
-     
         return lstm_lrp_x,(lstm_lrp_h,lstm_lrp_g,lstm_lrp_c)
 
    
@@ -386,7 +393,7 @@ def lrp_single_input(model,embedding_layer,embedding_init_mat,n_words,input_file
            
             emb_name = "embedding"
             feed = data_token
-            lrp_input = lrp_embedding(model,emb_name,n_words,feed,embedding_init_mat[data_token,:],lstm_lrp_x,dictionary,eps,delta,debug)
+            lrp_input,lrp_res = lrp_embedding(model,emb_name,n_words,feed,embedding_init_mat[data_token,:],lstm_lrp_x,dictionary,eps,delta,debug)
         
         else:
             raise ValueError("Add embedding layer")
@@ -407,7 +414,7 @@ def lrp_full(model,embedding_layer,n_words,feed,fc_out_json,lstm_hidden_json,lst
     layer = tflearn.variables.get_layer_variables_by_name("embedding")
     final_embedding_mat = model.get_weights(layer[0])
 
-    reviewLRP_data = {"pos":[],"neg":[],"neutral":[]}
+    reviewLRP_data = {"pos":[],"neg":[],"neutral":[]} # keep top-LRP LSTM neurons that contribute to pos/neg reviews
     LRP = collections.OrderedDict()
     totalLRP = collections.OrderedDict()
 
@@ -438,9 +445,12 @@ def lrp_full(model,embedding_layer,n_words,feed,fc_out_json,lstm_hidden_json,lst
     neuron_types = get_NeuronType(reviewLRP_data,lrp_fc.shape[0])
     excitingWords_fullSet = get_MostExcitingWords_allReviews(save_dir,neuronWords_jsons,topN=5)
     similarityMatrix_AllReviews = get_NeuronSimilarity_AllReviews(excitingWords_fullSet,final_embedding_mat,embedding_size,dictionary)
+        
     with open(save_dir+"exploratoryDataFull.pickle", 'wb') as f:
-        pickle.dump((excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP), f)
+        pickle.dump((feed,final_embedding_mat,excitingWords_fullSet,similarityMatrix_AllReviews,similarityMatrix_PerReview,neuron_types,totalLRP,LRP), f)
+    
     print("Saved auxiliary data dictionaries and distance matrices...")
+    
 
     
     return LRP

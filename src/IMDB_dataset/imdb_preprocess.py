@@ -266,15 +266,15 @@ def get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary):
 
     model = gensim.models.KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)  
     w2v   = dict(zip(model.index2word, model.syn0))
-    inv_dict = {v: k for k, v in dictionary.items()}
     
     ebd_init = np.zeros((n_words,embedding_dim))
     w2v_w = list(w2v.keys())
+    dict_k = list(dictionary.keys())
     for i in range(n_words):        
-        if inv_dict[i] in w2v_w:
-            ebd_init[i,:] = w2v[inv_dict[i]]
+        if ((i in dict_k) and (dictionary[i] in w2v_w)):
+            ebd_init[i,:] = w2v[dictionary[i]]
         else:
-            ebd_init[i,:] = np.zeros((embedding_dim))
+            ebd_init[i,:] = np.zeros((embedding_dim,))
             
     return ebd_init    
 
@@ -297,7 +297,7 @@ def get_review_from_token(rev_matrix,inv_dictionary_w,save_mode,save_dir,n_words
 
     print("Exported test id:review  dictionary...")            
     embedding_initMat = None    
-    #embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,dictionary_w)
+    #embedding_initMat =  get_initial_embeddings_from_dictionary(n_words,embedding_dim,inv_dictionary_w)
     
     print("Got initial word embeddings...")
 
